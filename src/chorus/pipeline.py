@@ -17,6 +17,8 @@ from chorus.miscue import detect_miscues, normalize
 from chorus.scoring import score_reading, score_with_accent_excused
 from chorus.types import Analysis, WordResult, WordStatus
 
+# Stricter caller filter (requires a letter); align._ALIGNABLE, `[a-z']+`, is the
+# permissive callee contract. Keep the two in step.
 _ALIGNABLE = re.compile(r"[a-z']*[a-z][a-z']*")
 
 
@@ -52,7 +54,7 @@ def _attach_timings(
     """Return new word results with alignment timings copied on.
 
     `timings[k]` belongs to the word whose index is `aligned_indices[k]`.
-    Words that were not aligned (digits, hyphenated or non-ASCII tokens) are
+    Words that were not aligned (tokens like 2599, hyphenated or non-ASCII tokens) are
     left untimed, and the pacing metric ignores untimed words.
     """
     if len(timings) != len(aligned_indices):
@@ -83,8 +85,10 @@ def analyze(
     """
     if language:
         load_ruleset(language)
-    transcript = transcribe(audio_path, model_size=model_size)
     expected_tokens = normalize(expected_text)
+    if not expected_tokens:
+        raise ValueError("expected_text contains no words")
+    transcript = transcribe(audio_path, model_size=model_size)
     words = detect_miscues(expected_tokens, normalize(transcript.text))
 
     aligned_indices = [

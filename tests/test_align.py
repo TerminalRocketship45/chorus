@@ -15,6 +15,11 @@ def test_missing_file_raises(tmp_path):
         align_words(tmp_path / "nope.wav", "the cat sat on the mat")
 
 
+def test_directory_path_raises_file_not_found(tmp_path):
+    with pytest.raises(FileNotFoundError, match="not found"):
+        align_words(tmp_path, "the cat")
+
+
 def test_empty_text_returns_empty(silence_wav):
     assert align_words(silence_wav, "") == []
 

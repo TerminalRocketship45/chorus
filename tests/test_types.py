@@ -1,4 +1,4 @@
-from chorus.types import WordStatus, WordResult, ReadingScore, Analysis
+from chorus.types import ERROR_STATUSES, WordStatus, WordResult, ReadingScore, Analysis
 
 
 def test_word_status_values():
@@ -19,3 +19,9 @@ def test_analysis_holds_words_and_score():
     )
     a = Analysis(words=[], score=score, accent_adjusted=None)
     assert a.score.wcpm == 60.0
+
+
+def test_error_statuses_are_exactly_substitution_omission_insertion():
+    assert ERROR_STATUSES == frozenset(
+        {WordStatus.SUBSTITUTION, WordStatus.OMISSION, WordStatus.INSERTION}
+    )

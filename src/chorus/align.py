@@ -2,8 +2,9 @@
 
 This is deliberately separate from ASR. ASR answers "what did they say";
 alignment answers "when did they say each expected word". Timings feed the
-pacing metric, and the per-word confidence scores flag words the reader
-struggled to produce even when the word itself was right.
+pacing metric. The per-word score is a match-quality signal between the audio
+and the expected word that the Phase 1 pipeline does not yet propagate to
+WordResult.
 """
 from __future__ import annotations
 
@@ -13,6 +14,8 @@ from functools import lru_cache
 from pathlib import Path
 
 TARGET_SR = 16000
+# Permissive callee contract; pipeline._ALIGNABLE is the stricter caller filter
+# (it also requires at least one letter). Keep the two in step.
 _ALIGNABLE = re.compile(r"[a-z']+")
 
 
@@ -56,7 +59,7 @@ def align_words(audio_path: str | Path, expected_text: str) -> list[WordTiming]:
     the mismatch signal.
     """
     path = Path(audio_path)
-    if not path.exists():
+    if not path.is_file():
         raise FileNotFoundError(f"Audio file not found: {path}")
     words = expected_text.lower().split()
     if not words:
@@ -68,7 +71,6 @@ def align_words(audio_path: str | Path, expected_text: str) -> list[WordTiming]:
         )
 
     import torch
-    import torchaudio.functional as F
 
     bundle = _get_bundle()
     model = bundle.get_model()

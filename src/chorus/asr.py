@@ -31,7 +31,7 @@ def _get_model(model_size: str):
 def transcribe(audio_path: str | Path, model_size: str = "base.en") -> Transcript:
     """Transcribe an audio file. Returns what was said, not what was expected."""
     path = Path(audio_path)
-    if not path.exists():
+    if not path.is_file():
         raise FileNotFoundError(f"Audio file not found: {path}")
     model = _get_model(model_size)
     segments, info = model.transcribe(str(path), language="en", beam_size=1)

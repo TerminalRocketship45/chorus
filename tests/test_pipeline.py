@@ -64,7 +64,7 @@ def _correct(index, expected):
 
 
 def test_attach_timings_skips_unaligned_words():
-    words = [_correct(0, "cat"), _correct(1, "3"), _correct(2, "sat")]
+    words = [_correct(0, "cat"), _correct(1, "2599"), _correct(2, "sat")]
     timings = [WordTiming("cat", 0.1, 0.4, 0.9), WordTiming("sat", 0.6, 0.9, 0.9)]
     out = _attach_timings(words, timings, [0, 2])
     assert (out[0].start, out[0].end) == (0.1, 0.4)
@@ -86,7 +86,7 @@ def test_attach_timings_does_not_mutate_input():
 
 
 def test_analyze_skips_alignment_when_no_token_is_alignable(monkeypatch, tmp_path):
-    """Digit-only passages must not reach the aligner (regression)."""
+    """Passages of unalignable tokens must not reach the aligner (regression)."""
 
     def boom(*args, **kwargs):
         raise AssertionError("align_words must not be called")
@@ -95,12 +95,13 @@ def test_analyze_skips_alignment_when_no_token_is_alignable(monkeypatch, tmp_pat
     monkeypatch.setattr(
         pipeline, "transcribe",
         lambda path, model_size="base.en": Transcript(
-            text="one two three", duration_s=3.0
+            text="twenty five ninety nine first", duration_s=3.0
         ),
     )
-    result = analyze(tmp_path / "unused.wav", "1 2 3")
+    # 2599 (above 999) and 1st are left unchanged by normalize and are not alignable.
+    result = analyze(tmp_path / "unused.wav", "2599 1st")
     assert isinstance(result, Analysis)
-    assert len(result.words) == 3
+    assert len(result.words) == 2
     assert all(w.start is None and w.end is None for w in result.words)
 
 
@@ -158,16 +159,39 @@ def _patch_stages(monkeypatch, heard, calls):
     monkeypatch.setattr(pipeline, "align_words", fake_align)
 
 
-def test_analyze_digit_in_middle_is_untimed_and_does_not_shift(monkeypatch, tmp_path):
+def test_analyze_unalignable_token_in_middle_is_untimed_and_does_not_shift(
+    monkeypatch, tmp_path
+):
     calls = []
-    _patch_stages(monkeypatch, "the three cats", calls)
-    result = analyze(tmp_path / "x.wav", "the 3 cats")
+    _patch_stages(monkeypatch, "the many cats", calls)
+    result = analyze(tmp_path / "x.wav", "the 2599 cats")
     assert calls == ["the cats"]
     the, digit, cats = result.words
     assert digit.status is WordStatus.SUBSTITUTION
     assert digit.start is None and digit.end is None
     assert (the.start, the.end) == (0.1, pytest.approx(0.15))
     assert (cats.start, cats.end) == (0.2, pytest.approx(0.25))
+
+
+def test_analyze_small_number_is_aligned_as_its_word(monkeypatch, tmp_path):
+    calls = []
+    _patch_stages(monkeypatch, "the three cats", calls)
+    result = analyze(tmp_path / "x.wav", "the 3 cats")
+    assert calls == ["the three cats"]
+    assert [w.expected for w in result.words] == ["the", "three", "cats"]
+    assert all(w.status is WordStatus.CORRECT for w in result.words)
+    assert all(w.start is not None and w.end is not None for w in result.words)
+
+
+@pytest.mark.parametrize("text", ["", "   ", "!!! ... ---"])
+def test_analyze_empty_passage_raises_before_any_model(monkeypatch, tmp_path, text):
+    def boom(*args, **kwargs):
+        raise RuntimeError("model stage ran")
+
+    monkeypatch.setattr(pipeline, "transcribe", boom)
+    monkeypatch.setattr(pipeline, "align_words", boom)
+    with pytest.raises(ValueError, match="no words"):
+        analyze(tmp_path / "x.wav", text)
 
 
 def test_analyze_omitted_word_is_not_aligned_and_untimed(monkeypatch, tmp_path):
@@ -207,5 +231,3 @@ def test_analyze_omitted_words_do_not_displace_spoken_timings(cat_wav):
     for name in ("cat", "mat"):
         assert by[name].start == pytest.approx(base[name].start, abs=0.06)
         assert by[name].end == pytest.approx(base[name].end, abs=0.06)
-    print("BASE", [(w.expected, w.start, w.end) for w in analyze(cat_wav, PASSAGE).words])
-    print("OMIT", [(w.expected, w.start, w.end) for w in result.words])

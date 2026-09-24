@@ -1,3 +1,5 @@
+import pytest
+
 from chorus.miscue import normalize, detect_miscues
 from chorus.types import WordStatus
 
@@ -87,9 +89,6 @@ def test_transposition_does_not_give_omission_heard_text():
             assert w.heard is None
 
 
-import pytest  # noqa: E402
-
-
 @pytest.mark.parametrize(
     "expected, heard",
     [
@@ -110,3 +109,42 @@ def test_structural_invariants(expected, heard):
     for w in out:
         if w.status is WordStatus.OMISSION:
             assert w.heard is None
+
+
+@pytest.mark.parametrize(
+    "text, tokens",
+    [
+        ("0", ["zero"]),
+        ("4", ["four"]),
+        ("12", ["twelve"]),
+        ("19", ["nineteen"]),
+        ("20", ["twenty"]),
+        ("21", ["twenty", "one"]),
+        ("99", ["ninety", "nine"]),
+        ("100", ["one", "hundred"]),
+        ("101", ["one", "hundred", "one"]),
+        ("110", ["one", "hundred", "ten"]),
+        ("999", ["nine", "hundred", "ninety", "nine"]),
+        ("The 3 cats", ["the", "three", "cats"]),
+    ],
+)
+def test_normalize_maps_small_integers_to_words(text, tokens):
+    assert normalize(text) == tokens
+
+
+@pytest.mark.parametrize("token", ["2599", "1000", "1st", "3rd", "000", "007", "00", "05"])
+def test_normalize_leaves_other_digit_tokens_unchanged(token):
+    assert normalize(token) == [token]
+
+
+def test_number_words_and_digits_normalise_to_the_same_tokens():
+    assert normalize("I have two cats") == normalize("I have 2 cats")
+
+
+def test_spoken_number_word_matches_digit_rendering():
+    out = detect_miscues(normalize("I have two cats"), normalize("I have 2 cats"))
+    assert [w.status for w in out] == [WordStatus.CORRECT] * 4
+
+
+def test_normalize_splits_decimals_per_part():
+    assert normalize("3.5") == ["three", "five"]

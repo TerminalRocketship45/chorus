@@ -17,10 +17,51 @@ _PUNCT = re.compile(r"[^\w']+")
 SELF_CORRECTION_MIN_SIMILARITY = 0.5
 
 
+_CANONICAL_INT = re.compile(r"0|[1-9][0-9]{0,2}")
+
+_ONES = (
+    "zero one two three four five six seven eight nine ten eleven twelve "
+    "thirteen fourteen fifteen sixteen seventeen eighteen nineteen"
+).split()
+_TENS = "_ _ twenty thirty forty fifty sixty seventy eighty ninety".split()
+
+
+def _number_words(n: int) -> list[str]:
+    """English cardinal words for 0 <= n <= 999, no "and" ("101" -> one hundred one)."""
+    if n < 20:
+        return [_ONES[n]]
+    if n < 100:
+        tens, ones = divmod(n, 10)
+        return [_TENS[tens]] + ([_ONES[ones]] if ones else [])
+    hundreds, rest = divmod(n, 100)
+    words = [_ONES[hundreds], "hundred"]
+    if rest:
+        words += _number_words(rest)
+    return words
+
+
 def normalize(text: str) -> list[str]:
-    """Lowercase, strip punctuation, split into word tokens."""
+    """Lowercase, strip punctuation, split into word tokens.
+
+    A token that is a canonical integer from 0 to 999 (no leading zeros except
+    the single token "0") becomes its English cardinal words as separate tokens
+    ("4" -> "four", "21" -> "twenty", "one", "101" -> "one", "hundred", "one").
+    Both the expected passage and the ASR transcript pass through this
+    function, so both land in the same space: a spoken number word and
+    Whisper's digit rendering of it now match. Any other digit-bearing token
+    ("2599", "1st", "007") is left unchanged. Limitation: decimals and
+    thousands separators are split by the punctuation rule first, so "3.5" is
+    read as "three", "five" and "1,000" as "one", "000" (each part mapped
+    separately, so "000" stays unchanged).
+    """
     cleaned = _PUNCT.sub(" ", text.lower())
-    return [t for t in cleaned.split() if t]
+    out: list[str] = []
+    for t in cleaned.split():
+        if _CANONICAL_INT.fullmatch(t):
+            out.extend(_number_words(int(t)))
+        else:
+            out.append(t)
+    return out
 
 
 def detect_miscues(expected: list[str], heard: list[str]) -> list[WordResult]:

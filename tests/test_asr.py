@@ -20,3 +20,8 @@ def test_transcribe_returns_transcript(silence_wav):
 def test_missing_file_raises(tmp_path):
     with pytest.raises(FileNotFoundError):
         transcribe(tmp_path / "nope.wav")
+
+
+def test_directory_path_raises_file_not_found(tmp_path):
+    with pytest.raises(FileNotFoundError, match="not found"):
+        transcribe(tmp_path)
