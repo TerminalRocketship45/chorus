@@ -1,8 +1,13 @@
 """First-language transfer rules.
 
-A reader whose home language lacks an English phoneme will substitute the
-nearest one available. That is an accent, not a reading error, and this module
-decides which is which.
+A reader whose home language lacks an English phoneme will often substitute
+the nearest one available. This module checks whether a heard word is
+consistent with the documented substitutions of a given first language.
+
+It is a phonology-only filter: it cannot tell an accent-shaped pronunciation
+from a different real word that happens to fit the same pattern (for example
+"rock" read as "lock"). The evaluation's `retention` metric guards against
+that limit.
 
 Rule sets are data, not code: adding a language means adding a JSON file.
 """
@@ -12,17 +17,25 @@ import json
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
+from types import MappingProxyType
+from typing import Mapping
 
 from chorus.phonemes import to_phonemes
 
 _DATA_DIR = Path(__file__).parent / "data"
+_VALID_STATUSES = frozenset({"validated", "shipped", "drafted"})
 
 
 @dataclass(frozen=True)
 class RuleSet:
+    """Immutable rule set. Not hashable (read-only mapping field); the cache
+    in `load_ruleset` is keyed on the language string, not on this object."""
+
     language: str
     status: str
-    substitutions: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    substitutions: Mapping[str, tuple[str, ...]] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
     cluster_reduction: bool = False
     final_consonant_deletion: bool = False
     epenthesis: bool = False  # loaded from data but not yet matched by is_accent_variant
@@ -36,17 +49,26 @@ def available_languages() -> list[str]:
 
 @lru_cache(maxsize=32)
 def load_ruleset(language: str) -> RuleSet:
-    """Load a rule set by language name. Raises KeyError if absent."""
-    path = _DATA_DIR / f"{language}.json"
-    if not path.exists():
+    """Load a rule set by language name.
+
+    Raises KeyError unless `language` is in `available_languages()` (this also
+    blocks path traversal) and ValueError if the file's status is unknown.
+    """
+    if language not in available_languages():
         raise KeyError(f"No rule set for language: {language}")
+    path = _DATA_DIR / f"{language}.json"
     raw = json.loads(path.read_text(encoding="utf-8"))
+    if raw["status"] not in _VALID_STATUSES:
+        raise ValueError(
+            f"{language}: status must be one of {sorted(_VALID_STATUSES)}, "
+            f"got {raw['status']!r}"
+        )
     return RuleSet(
         language=raw["language"],
         status=raw["status"],
-        substitutions={
-            k: tuple(v) for k, v in raw.get("substitutions", {}).items()
-        },
+        substitutions=MappingProxyType(
+            {k: tuple(v) for k, v in raw.get("substitutions", {}).items()}
+        ),
         cluster_reduction=raw.get("cluster_reduction", False),
         final_consonant_deletion=raw.get("final_consonant_deletion", False),
         epenthesis=raw.get("epenthesis", False),
@@ -55,10 +77,17 @@ def load_ruleset(language: str) -> RuleSet:
 
 
 def is_accent_variant(expected_word: str, heard_word: str, rules: RuleSet) -> bool:
-    """True if `heard_word` is `expected_word` filtered through this accent.
+    """True if `heard_word` is consistent with this accent's documented
+    substitutions, deletions and reductions applied to `expected_word`.
+
+    This includes the case where the heard word is itself a different real
+    word (rock -> lock). That is a known limit of a phonology-only filter; the
+    evaluation's `retention` metric guards against it.
 
     Returns False for identical words: that is a correct read, and classifying
     it as accent would be misleading.
+
+    Note: the `epenthesis` flag is loaded from data but not yet matched here.
     """
     if expected_word == heard_word:
         return False
