@@ -1,0 +1,222 @@
+{
+  "words": 3219,
+  "utterances": 500,
+  "counts_by_status": {
+    "correct": 2265,
+    "substitution": 786,
+    "insertion": 77,
+    "omission": 77,
+    "self_correction": 14
+  },
+  "expert_correct": 2936,
+  "expert_mispronounced": 283,
+  "heard_verbatim": 2265,
+  "fp_before": 700,
+  "fp_after": 686,
+  "tp_before": 240,
+  "tp_after": 234,
+  "fp_reduction": 0.02,
+  "retention": 0.975,
+  "fp_reduction_ci95": [
+    0.010097772597772598,
+    0.031671178343949044
+  ],
+  "retention_ci95": [
+    0.9537329008814212,
+    0.9922823632257595
+  ],
+  "bootstrap_resamples": {
+    "fp_reduction": 1000,
+    "retention": 1000,
+    "requested": 1000
+  },
+  "baseline_flag_rate": 0.2920161540851196,
+  "filtered_flag_rate": 0.28580304442373405,
+  "excused_words": 20,
+  "excused_heard_is_real_english_word": 20,
+  "excused_real_word_dictionary": "nltk cmudict",
+  "excused_sample": [
+    [
+      "it's",
+      "it",
+      10.0
+    ],
+    [
+      "world",
+      "word",
+      10.0
+    ],
+    [
+      "it's",
+      "it",
+      10.0
+    ],
+    [
+      "likes",
+      "like",
+      10.0
+    ],
+    [
+      "mike",
+      "my",
+      10.0
+    ],
+    [
+      "sends",
+      "send",
+      10.0
+    ],
+    [
+      "or",
+      "all",
+      10.0
+    ],
+    [
+      "forth",
+      "for",
+      10.0
+    ],
+    [
+      "seems",
+      "seem",
+      10.0
+    ],
+    [
+      "opened",
+      "open",
+      5.0
+    ],
+    [
+      "looked",
+      "look",
+      5.0
+    ],
+    [
+      "war",
+      "wall",
+      10.0
+    ],
+    [
+      "chickens",
+      "chicken",
+      10.0
+    ],
+    [
+      "desks",
+      "desk",
+      10.0
+    ],
+    [
+      "tenth",
+      "tense",
+      10.0
+    ],
+    [
+      "its",
+      "it",
+      3.0
+    ],
+    [
+      "it's",
+      "it",
+      3.0
+    ],
+    [
+      "hands",
+      "hand",
+      5.0
+    ],
+    [
+      "turned",
+      "turn",
+      5.0
+    ],
+    [
+      "faith",
+      "face",
+      10.0
+    ]
+  ],
+  "false_positive_cases": [
+    {
+      "expected": "get",
+      "heard": null,
+      "expert_accuracy": 10.0,
+      "status": "omission",
+      "excused": false
+    },
+    {
+      "expected": "in",
+      "heard": "into",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "they",
+      "heard": "there",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "his",
+      "heard": "the",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "four",
+      "heard": "4",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "will",
+      "heard": "we",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "in",
+      "heard": "say",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "the",
+      "heard": "of",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "from",
+      "heard": "way",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "mouth",
+      "heard": "samos",
+      "expert_accuracy": 8.0,
+      "status": "substitution",
+      "excused": false
+    }
+  ],
+  "model": "base.en",
+  "seed": 0,
+  "limit": 500,
+  "language": "mandarin",
+  "split": "test",
+  "sampled_ids": 500,
+  "skipped_utterances": 0,
+  "skip_reasons": [],
+  "missing_from_scores": 0,
+  "missing_audio": 0
+}
