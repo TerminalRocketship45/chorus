@@ -1,4 +1,9 @@
-"""Wiring only. Every piece of logic lives in the stage modules."""
+"""Wiring only. Every piece of logic lives in the stage modules.
+
+An accent-excused SUBSTITUTION keeps its status and still counts as an error
+in the RAW score; consumers must render `accent_excused` words as correct and
+never describe an accent as wrong.
+"""
 from __future__ import annotations
 
 import re
@@ -19,7 +24,8 @@ def apply_l1_filter(words: list[WordResult], language: str) -> list[WordResult]:
     """Mark substitutions that this reader's first language predicts.
 
     Raises KeyError for an unknown language, so a typo in a learner profile
-    fails loudly rather than silently disabling the feature.
+    fails loudly rather than silently disabling the feature. Excused words keep
+    their SUBSTITUTION status and still count as errors in the raw score.
     """
     rules = load_ruleset(language)
     out: list[WordResult] = []
@@ -70,13 +76,22 @@ def analyze(
     """Score one read-aloud.
 
     `language` is the reader's home language. When given, the returned
-    Analysis carries an accent-adjusted score alongside the raw one.
+    Analysis carries an accent-adjusted score alongside the raw one, and an
+    unknown language raises KeyError before any model runs. `duration_s` and
+    WCPM use the whole recording, so leading and trailing silence lowers WCPM.
+    Omitted and unalignable words are untimed (start/end None).
     """
+    if language:
+        load_ruleset(language)
     transcript = transcribe(audio_path, model_size=model_size)
     expected_tokens = normalize(expected_text)
     words = detect_miscues(expected_tokens, normalize(transcript.text))
 
-    aligned_indices = [i for i, t in enumerate(expected_tokens) if _is_alignable(t)]
+    aligned_indices = [
+        w.index
+        for w in words
+        if w.status is not WordStatus.OMISSION and _is_alignable(w.expected)
+    ]
     if aligned_indices:
         timings = align_words(
             audio_path, " ".join(expected_tokens[i] for i in aligned_indices)

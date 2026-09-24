@@ -142,3 +142,70 @@ def test_analyze_mismatch_is_not_excused_for_somali(cat_wav):
     assert dog.accent_excused is False
     assert result.score.accuracy == pytest.approx(5 / 6)
     assert result.accent_adjusted.accuracy == pytest.approx(5 / 6)
+
+
+def _patch_stages(monkeypatch, heard, calls):
+    monkeypatch.setattr(
+        pipeline, "transcribe",
+        lambda path, model_size="base.en": Transcript(text=heard, duration_s=3.0),
+    )
+
+    def fake_align(path, text):
+        calls.append(text)
+        return [WordTiming(t, 0.1 * (k + 1), 0.1 * (k + 1) + 0.05, 0.9)
+                for k, t in enumerate(text.split())]
+
+    monkeypatch.setattr(pipeline, "align_words", fake_align)
+
+
+def test_analyze_digit_in_middle_is_untimed_and_does_not_shift(monkeypatch, tmp_path):
+    calls = []
+    _patch_stages(monkeypatch, "the three cats", calls)
+    result = analyze(tmp_path / "x.wav", "the 3 cats")
+    assert calls == ["the cats"]
+    the, digit, cats = result.words
+    assert digit.status is WordStatus.SUBSTITUTION
+    assert digit.start is None and digit.end is None
+    assert (the.start, the.end) == (0.1, pytest.approx(0.15))
+    assert (cats.start, cats.end) == (0.2, pytest.approx(0.25))
+
+
+def test_analyze_omitted_word_is_not_aligned_and_untimed(monkeypatch, tmp_path):
+    calls = []
+    _patch_stages(monkeypatch, "the cats", calls)
+    result = analyze(tmp_path / "x.wav", "the big cats")
+    assert calls == ["the cats"]
+    the, big, cats = result.words
+    assert big.status is WordStatus.OMISSION
+    assert big.start is None and big.end is None
+    assert the.start == 0.1 and cats.start == 0.2
+
+
+def test_analyze_bad_language_fails_before_any_model(monkeypatch, tmp_path):
+    def boom(*args, **kwargs):
+        raise RuntimeError("model stage ran")
+
+    monkeypatch.setattr(pipeline, "transcribe", boom)
+    monkeypatch.setattr(pipeline, "align_words", boom)
+    with pytest.raises(KeyError):
+        analyze(tmp_path / "x.wav", "the cat", language="klingon")
+
+
+@pytest.mark.slow
+def test_analyze_omitted_words_do_not_displace_spoken_timings(cat_wav):
+    base = {w.expected: w for w in analyze(cat_wav, PASSAGE).words}
+    result = analyze(cat_wav, "The cat sat on the big red mat.", language="somali")
+    by = {}
+    for w in result.words:
+        by.setdefault(w.expected, w)
+    for name in ("big", "red"):
+        assert by[name].status is WordStatus.OMISSION
+        assert by[name].start is None and by[name].end is None
+    for w in result.words:
+        if w.expected not in ("big", "red"):
+            assert w.start is not None and w.end is not None
+    for name in ("cat", "mat"):
+        assert by[name].start == pytest.approx(base[name].start, abs=0.06)
+        assert by[name].end == pytest.approx(base[name].end, abs=0.06)
+    print("BASE", [(w.expected, w.start, w.end) for w in analyze(cat_wav, PASSAGE).words])
+    print("OMIT", [(w.expected, w.start, w.end) for w in result.words])
