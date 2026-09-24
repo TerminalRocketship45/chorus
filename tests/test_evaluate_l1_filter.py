@@ -381,6 +381,11 @@ def test_main_uses_test_split_and_records_settings(monkeypatch, tmp_path):
     assert res["baseline_false_flag_rate_on_expert_correct"] == {
         "rate": 1.0, "fp": 2, "expert_correct": 2}
     assert (tmp_path / "r.json").read_text().endswith("\n")
+    raw = (tmp_path / "r.json").read_bytes()
+    assert raw.endswith(b"\n") and b"\r\n" not in raw  # LF only
+    fb = res["false_flags_by_status"]
+    assert set(fb) == {"substitution", "omission", "insertion", "total"}
+    assert fb["total"] == res["fp_before"] == 2
 
 
 def test_summarise_limitations_and_digit_counts():
@@ -396,6 +401,23 @@ def test_summarise_limitations_and_digit_counts():
     assert s["genuine_errors_excused"] == 1
     assert "1 of 1 genuine errors" in s["limitations"]
     assert "Mandarin-L1 only" in s["limitations"] and "base.en" in s["limitations"]
+    assert "digits for number words" not in s["limitations"]
+    assert "0-999" in s["limitations"] and "INSERTION" in s["limitations"]
+
+
+def test_summarise_false_flags_by_status_total_equals_fp_before():
+    recs = [
+        WordRecord("think", "sink", 9.0, status=WordStatus.SUBSTITUTION, uttid="a"),
+        WordRecord("cat", "dog", 10.0, status=WordStatus.SUBSTITUTION, uttid="a"),
+        WordRecord("get", None, 10.0, status=WordStatus.OMISSION, uttid="a"),
+        WordRecord("kangaroo", "kangaroo", 10.0, status=WordStatus.INSERTION, uttid="a"),
+        WordRecord("ok", "ok", 10.0, status=WordStatus.CORRECT, uttid="a"),
+        WordRecord("bad", "bat", 3.0, status=WordStatus.SUBSTITUTION, uttid="a"),
+    ]
+    s = E.summarise(recs, "mandarin", 0, n_boot=20, model="base.en")
+    assert s["false_flags_by_status"] == {
+        "substitution": 2, "omission": 1, "insertion": 1, "total": 4}
+    assert s["false_flags_by_status"]["total"] == s["fp_before"]
 
 
 def test_missing_cmudict_fails_before_transcription(monkeypatch, tmp_path):

@@ -314,8 +314,13 @@ LIMITATIONS_TEMPLATE = (
     "Mandarin-L1 only (all 250 speakers of the speechocean762 corpus); ASR was "
     "{model} on CPU; one seeded sample of {n_utts} utterances from the corpus test "
     "split. This is not a general product claim. Most baseline false flags are not "
-    "accent-shaped (ASR/text mismatch such as in->into, or digits for number words), "
-    "so the ASR sets the ceiling on what an accent filter can withdraw. "
+    "accent-shaped (ASR/text mismatch such as in->into), so the ASR sets the "
+    "ceiling on what an accent filter can withdraw. Number words that Whisper "
+    "renders as digits are normalised by miscue.normalize for integers 0-999 "
+    "(larger or mixed tokens such as 2599 or 1st are left unchanged). Of the "
+    "{fp} baseline false flags, {n_sub} are substitutions, {n_om} omissions and "
+    "{n_ins} insertions; an INSERTION-status false flag is a word read "
+    "correctly with an extra word nearby, which the accent filter cannot touch. "
     "Final-consonant deletion cannot distinguish an accent from a dropped "
     "inflection: {bad} of {tp} genuine errors (expert accuracy < 8.0) were "
     "excused, e.g. {examples}."
@@ -344,10 +349,18 @@ def summarise(records: list[WordRecord], language: str, seed: int, n_boot: int =
         1 for r in fps if r.heard is not None and any(c.isdigit() for c in r.heard)
     )
     n_correct = sum(r.expert_accuracy >= EXPERT_CORRECT for r in records)
+    # Baseline false flags by status. Only substitutions are the kind of thing
+    # the accent filter can touch; "total" always equals fp_before.
+    by_status = {"substitution": 0, "omission": 0, "insertion": 0}
+    for r in fps:
+        by_status[r.status.value] += 1
+    by_status_out = {**by_status, "total": sum(by_status.values())}
     return {
         "limitations": LIMITATIONS_TEMPLATE.format(
             model=model, n_utts=len({r.uttid for r in records}),
             bad=len(bad_excused), tp=m.tp_before, examples=ex_text,
+            fp=m.fp_before, n_sub=by_status["substitution"],
+            n_om=by_status["omission"], n_ins=by_status["insertion"],
         ),
         "genuine_errors_excused": len(bad_excused),
         "baseline_false_flag_rate_on_expert_correct": {
@@ -355,6 +368,9 @@ def summarise(records: list[WordRecord], language: str, seed: int, n_boot: int =
             "fp": m.fp_before,
             "expert_correct": n_correct,
         },
+        "false_flags_by_status": by_status_out,
+        # The two digit fields below are now a regression indicator for
+        # miscue.normalize: they should stay near 0 for integers 0-999.
         "digit_rendering_false_flags": digit_fps,
         "false_flags_with_any_digit_in_heard": any_digit_fps,
         "words": n,
@@ -481,7 +497,8 @@ def main(argv: list[str] | None = None) -> None:
         print(f"   {c['expected']} -> {c['heard']}, {c['expert_accuracy']}, "
               f"{c['status']}, excused={c['excused']}")
 
-    args.results.write_text(json.dumps(s, indent=2) + "\n", encoding="utf-8")
+    with open(args.results, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(json.dumps(s, indent=2) + "\n")
     print(f"wrote {args.results}")
 
 
