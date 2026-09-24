@@ -13,6 +13,7 @@ from eval.evaluate_l1_filter import (
     read_test_ids,
     sample_ids,
 )
+import eval.evaluate_l1_filter as E
 from eval.fetch_speechocean import Utterance
 
 
@@ -144,7 +145,7 @@ def test_bootstrap_ci_degenerate_inputs():
     no_fp = [_rec("cat", "dog", 2.0, uttid="u"), _rec("cat", "dog", 2.0, uttid="v")]
     out = bootstrap_ci(no_fp, "mandarin", n=50, seed=0)
     assert out["retention"] == (1.0, 1.0)
-    assert bootstrap_ci([], "mandarin", n=10, seed=0)["retention"] == (0.0, 0.0)
+    assert bootstrap_ci([], "mandarin", n=10, seed=0)["retention"] == (None, None)
 
 
 def _utt(uttid, text, accs):
@@ -233,3 +234,196 @@ def test_cache_saved_before_failure(monkeypatch, tmp_path):
     with pytest.raises(RuntimeError):
         build_records(utts, index, cache_path=cache, save_every=100)
     assert set(json.loads(cache.read_text())) == {"u0", "u1"}
+
+
+# ---- fix round 1 (R21) ----
+
+def _utt_recs(uttid, n_fp_excused=0, n_fp_kept=0):
+    """Expert-correct false positives: think->sink is excused, cat->dog is kept."""
+    return (
+        [WordRecord("think", "sink", 9.0, uttid=uttid) for _ in range(n_fp_excused)]
+        + [WordRecord("cat", "dog", 9.0, uttid=uttid) for _ in range(n_fp_kept)]
+    )
+
+
+def _word_level_ci(records, n, seed):
+    import random
+
+    rng = random.Random(seed)
+    vals = []
+    for _ in range(n):
+        m = evaluate([rng.choice(records) for _ in records], "mandarin")
+        if m.fp_before:
+            vals.append(m.fp_reduction)
+    vals.sort()
+    return E._percentile(vals, 0.025), E._percentile(vals, 0.975)
+
+
+def test_bootstrap_uses_pooled_ratio_not_mean_of_utterance_ratios():
+    # One big utterance (40 kept flags, ratio 0) and nine tiny ones (1 excused
+    # flag each, ratio 1). Pooled point = 9/49; the mean of per-utterance ratios
+    # would be 0.9. The pooled estimator's interval reaches far down; a
+    # mean-of-ratios bootstrap would have a lower bound near 0.6-0.7.
+    recs = _utt_recs("big", n_fp_kept=40)
+    for i in range(9):
+        recs += _utt_recs(f"s{i}", n_fp_excused=1)
+    m = evaluate(recs, "mandarin")
+    assert m.fp_reduction == pytest.approx(9 / 49)
+    lo, hi = bootstrap_ci(recs, "mandarin", n=1000, seed=0)["fp_reduction"]
+    assert lo < 0.3
+    assert lo < m.fp_reduction < hi
+    assert hi - lo > 0.5
+
+
+def test_bootstrap_heterogeneous_point_is_pooled_and_interval_has_width():
+    recs = _utt_recs("a", n_fp_excused=1)
+    recs += _utt_recs("b", n_fp_kept=9)
+    recs += _utt_recs("c", n_fp_excused=2, n_fp_kept=2)
+    m = evaluate(recs, "mandarin")
+    assert m.fp_reduction == pytest.approx(3 / 14)  # pooled, not mean(1, 0, .5) = .5
+    lo, hi = bootstrap_ci(recs, "mandarin", n=500, seed=1)["fp_reduction"]
+    assert hi > lo
+
+
+def test_bootstrap_resamples_utterances_not_words():
+    # Six utterances of ten flags each, either all excused or none: flags are
+    # perfectly clustered, so the honest utterance-level interval is far wider
+    # than a word-level bootstrap over the same 60 words would suggest.
+    recs = []
+    for i in range(3):
+        recs += _utt_recs(f"e{i}", n_fp_excused=10)
+        recs += _utt_recs(f"k{i}", n_fp_kept=10)
+    lo, hi = bootstrap_ci(recs, "mandarin", n=1000, seed=0)["fp_reduction"]
+    wlo, whi = _word_level_ci(recs, 1000, 0)
+    assert (hi - lo) > 2 * (whi - wlo)
+    assert (hi - lo) > 0.5
+
+
+# main() tests
+
+def _install_main_stubs(monkeypatch, tmp_path, scores, test_ids, train_ids, transcripts):
+    import chorus.asr as asr
+    import eval.fetch_speechocean as fs
+
+    requested, transcribed = [], []
+    monkeypatch.setattr(fs, "load_scores", lambda *a, **k: scores)
+    monkeypatch.setattr(
+        fs, "build_audio_index",
+        lambda *a, **k: {u.uttid.lower(): tmp_path / f"{u.uttid.lower()}.wav" for u in scores},
+    )
+
+    def fake_split(split):
+        requested.append(split)
+        return {"test": test_ids, "train": train_ids}[split]
+
+    monkeypatch.setattr(E, "split_ids", fake_split)
+    monkeypatch.setattr(E, "CACHE_DIR", tmp_path / "cache")
+
+    def fake_transcribe(path, model_size="base.en"):
+        transcribed.append(Path(path).stem)
+        return asr.Transcript(text=transcripts[Path(path).stem], duration_s=1.0)
+
+    monkeypatch.setattr(asr, "transcribe", fake_transcribe)
+    return requested, transcribed
+
+
+def test_main_raises_on_zero_records(monkeypatch, tmp_path):
+    bad = Utterance("T1", "WELL-KNOWN DOG", 0, 0, 0, 0,
+                    [{"text": "WELL-KNOWN", "accuracy": 9.0}, {"text": "DOG", "accuracy": 9.0}])
+    _install_main_stubs(monkeypatch, tmp_path, [bad], ["T1"], [], {"t1": "well known dog"})
+    with pytest.raises(RuntimeError, match="No records"):
+        E.main(["--limit", "5", "--results", str(tmp_path / "r.json")])
+    assert not (tmp_path / "r.json").exists()
+
+
+def test_main_empty_sample_raises(monkeypatch, tmp_path):
+    _install_main_stubs(monkeypatch, tmp_path, [], [], [], {})
+    with pytest.raises(RuntimeError, match="No records"):
+        E.main(["--results", str(tmp_path / "r.json")])
+
+
+def test_main_prints_na_for_undefined_ratios(monkeypatch, tmp_path, capsys):
+    # Every word read and heard correctly: no false positives, no genuine errors.
+    u = _utt("T1", "cat dog", [9.0, 9.0])
+    _install_main_stubs(monkeypatch, tmp_path, [u], ["T1"], [], {"t1": "cat dog"})
+    E.main(["--results", str(tmp_path / "r.json")])
+    out = capsys.readouterr().out
+    assert out.count("n/a (0 of 0)") == 2
+    assert "UNDEFINED" in out
+    fp_line = [l for l in out.splitlines() if l.startswith("false-positive reduction:")][0]
+    ret_line = [l for l in out.splitlines() if l.startswith("genuine-error retention")][0]
+    assert "0.0%" not in fp_line and "0.0%" not in ret_line
+    res = json.loads((tmp_path / "r.json").read_text())
+    assert res["fp_reduction"] is None and res["retention"] is None
+
+
+def test_main_uses_test_split_and_records_settings(monkeypatch, tmp_path):
+    scores = [
+        _utt("T1", "think cat", [9.0, 2.0]),
+        _utt("T2", "think cat", [9.0, 2.0]),
+        _utt("R1", "think cat", [9.0, 2.0]),
+        _utt("R2", "think cat", [9.0, 2.0]),
+    ]
+    transcripts = {u: "sink dog" for u in ("t1", "t2", "r1", "r2")}
+    requested, transcribed = _install_main_stubs(
+        monkeypatch, tmp_path, scores, ["T1", "T2"], ["R1", "R2"], transcripts
+    )
+    E.main(["--model", "tiny.en", "--limit", "10", "--seed", "7",
+            "--language", "mandarin", "--results", str(tmp_path / "r.json")])
+    assert requested == ["test"]
+    assert sorted(transcribed) == ["t1", "t2"]
+    res = json.loads((tmp_path / "r.json").read_text())
+    assert (res["split"], res["seed"], res["model"], res["language"], res["limit"]) == (
+        "test", 7, "tiny.en", "mandarin", 10)
+    assert res["fp_before"] == 2 and res["fp_after"] == 0
+    assert res["tp_before"] == 2 and res["tp_after"] == 2
+    assert "tiny.en" in res["limitations"]
+    assert res["baseline_false_flag_rate_on_expert_correct"] == {
+        "rate": 1.0, "fp": 2, "expert_correct": 2}
+    assert (tmp_path / "r.json").read_text().endswith("\n")
+
+
+def test_summarise_limitations_and_digit_counts():
+    recs = [
+        WordRecord("four", "4", 10.0, uttid="a"),      # digit rendering false flag
+        WordRecord("cat", "c4t", 10.0, uttid="a"),     # digit inside, not a number word
+        WordRecord("opened", "open", 5.0, uttid="a"),  # genuine error wrongly excused
+        WordRecord("think", "sink", 9.0, uttid="a"),   # excused false positive
+    ]
+    s = E.summarise(recs, "mandarin", 0, n_boot=20, model="base.en")
+    assert s["digit_rendering_false_flags"] == 1
+    assert s["false_flags_with_any_digit_in_heard"] == 2
+    assert s["genuine_errors_excused"] == 1
+    assert "1 of 1 genuine errors" in s["limitations"]
+    assert "Mandarin-L1 only" in s["limitations"] and "base.en" in s["limitations"]
+
+
+def test_missing_cmudict_fails_before_transcription(monkeypatch, tmp_path):
+    def missing():
+        raise RuntimeError("python -m nltk.downloader cmudict")
+
+    calls = []
+    _install_main_stubs(monkeypatch, tmp_path, [_utt("T1", "cat", [9.0])], ["T1"], [], {"t1": "cat"})
+    import chorus.asr as asr
+    monkeypatch.setattr(asr, "transcribe", lambda *a, **k: calls.append(1))
+    monkeypatch.setattr(E, "_cmu_words", missing)
+    with pytest.raises(RuntimeError, match="nltk.downloader cmudict"):
+        E.main(["--results", str(tmp_path / "r.json")])
+    assert calls == []
+
+
+def test_cmu_words_error_is_actionable(monkeypatch):
+    import nltk.corpus
+
+    class Broken:
+        def dict(self):
+            raise LookupError("resource cmudict not found")
+
+    monkeypatch.setattr(nltk.corpus, "cmudict", Broken())
+    with pytest.raises(RuntimeError, match="nltk.downloader cmudict"):
+        E._cmu_words()
+
+
+def test_evaluate_unknown_language_raises():
+    with pytest.raises(KeyError):
+        evaluate([], "klingon")

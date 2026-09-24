@@ -11,6 +11,14 @@ Two numbers, which must always be reported together:
 "Flagged" follows the shipped behaviour: a word is flagged when its real
 miscue status (from ``detect_miscues``) is an error status, and the filter is
 the real ``chorus.pipeline.apply_l1_filter``, not a re-implementation.
+
+Run (from KasRep; ``pytest.ini``'s ``pythonpath = src`` applies only under
+pytest, so outside pytest set PYTHONPATH yourself, ';' separates on Windows):
+
+  PYTHONPATH="src;." .venv/Scripts/python -m eval.evaluate_l1_filter --model base.en --limit 500 --seed 0 --language mandarin
+
+Transcripts are cached in eval/data/transcripts_<model>.json, so re-running
+does not call Whisper again.
 """
 from __future__ import annotations
 
@@ -22,6 +30,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import chorus.pipeline as pipeline
+from chorus.l1.engine import load_ruleset
 from chorus.miscue import normalize
 from chorus.types import ERROR_STATUSES, WordResult, WordStatus
 
@@ -74,7 +83,11 @@ class FilterMetrics:
 
 
 def is_excused(r: WordRecord, language: str) -> bool:
-    """Ask the real pipeline filter whether this word would be accent-excused."""
+    """Ask the real pipeline filter whether this word would be accent-excused.
+
+    Relies on ``apply_l1_filter`` being pure and per-word (each word is judged
+    independently), so a one-word call gives the same answer as a whole-text call.
+    """
     word = WordResult(index=0, expected=r.expected, heard=r.heard, status=r.status)
     return bool(pipeline.apply_l1_filter([word], language)[0].accent_excused)
 
@@ -88,6 +101,7 @@ def flags(r: WordRecord, language: str) -> tuple[bool, bool, bool]:
 
 def evaluate(records: list[WordRecord], language: str) -> FilterMetrics:
     """Build the before/after confusion counts for one language."""
+    load_ruleset(language)  # unknown language fails loudly, as in analyze()
     fp_before = fp_after = tp_before = tp_after = 0
     for r in records:
         before, after, _ = flags(r, language)
@@ -100,9 +114,9 @@ def evaluate(records: list[WordRecord], language: str) -> FilterMetrics:
     return FilterMetrics(fp_before, fp_after, tp_before, tp_after)
 
 
-def _percentile(sorted_vals: list[float], q: float) -> float:
+def _percentile(sorted_vals: list[float], q: float) -> float | None:
     if not sorted_vals:
-        return 0.0
+        return None
     pos = q * (len(sorted_vals) - 1)
     lo = int(pos)
     hi = min(lo + 1, len(sorted_vals) - 1)
@@ -116,7 +130,8 @@ def bootstrap_ci(
 
     Resamples whole utterances (by ``uttid``) with replacement, since words in
     one utterance are not independent. Resamples where a ratio's denominator is
-    zero are left out of that ratio's interval. Returns
+    zero are left out of that ratio's interval; an interval that is undefined
+    (no usable resample) is ``(None, None)``. Returns
     ``{"fp_reduction": (lo, hi), "retention": (lo, hi), "n_resamples_*": ...}``.
     """
     by_utt: dict[str, FilterMetrics] = {}
@@ -271,12 +286,44 @@ def _ratio(num: int, den: int, pct: float) -> str:
 
 
 def _cmu_words() -> set[str]:
-    from nltk.corpus import cmudict
+    """CMU pronouncing dictionary words; raises an actionable error if missing."""
+    try:
+        from nltk.corpus import cmudict
 
-    return set(cmudict.dict())
+        return set(cmudict.dict())
+    except (ImportError, LookupError) as exc:
+        raise RuntimeError(
+            "The CMU pronouncing dictionary is unavailable "
+            f"({type(exc).__name__}). Install nltk (see requirements.txt) and run: "
+            "python -m nltk.downloader cmudict"
+        ) from exc
 
 
-def summarise(records: list[WordRecord], language: str, seed: int, n_boot: int = 1000) -> dict:
+#: Digit renderings of number words, to count ASR digit-vs-word false flags.
+NUMBER_DIGITS = {
+    "zero": "0", "one": "1", "two": "2", "three": "3", "four": "4",
+    "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9",
+    "ten": "10", "eleven": "11", "twelve": "12", "thirteen": "13",
+    "fourteen": "14", "fifteen": "15", "sixteen": "16", "seventeen": "17",
+    "eighteen": "18", "nineteen": "19", "twenty": "20", "thirty": "30",
+    "forty": "40", "fifty": "50", "sixty": "60", "seventy": "70",
+    "eighty": "80", "ninety": "90", "hundred": "100",
+}
+
+LIMITATIONS_TEMPLATE = (
+    "Mandarin-L1 only (all 250 speakers of the speechocean762 corpus); ASR was "
+    "{model} on CPU; one seeded sample of {n_utts} utterances from the corpus test "
+    "split. This is not a general product claim. Most baseline false flags are not "
+    "accent-shaped (ASR/text mismatch such as in->into, or digits for number words), "
+    "so the ASR sets the ceiling on what an accent filter can withdraw. "
+    "Final-consonant deletion cannot distinguish an accent from a dropped "
+    "inflection: {bad} of {tp} genuine errors (expert accuracy < 8.0) were "
+    "excused, e.g. {examples}."
+)
+
+
+def summarise(records: list[WordRecord], language: str, seed: int, n_boot: int = 1000,
+              model: str = "unknown") -> dict:
     m = evaluate(records, language)
     ci = bootstrap_ci(records, language, n=n_boot, seed=seed)
     per = [(r, *flags(r, language)) for r in records]
@@ -288,7 +335,28 @@ def summarise(records: list[WordRecord], language: str, seed: int, n_boot: int =
     fps = [r for r, b, a, e in per if b and r.expert_accuracy >= EXPERT_CORRECT]
     fp_sample = rng.sample(fps, min(10, len(fps)))
     n = len(records)
+    bad_excused = [r for r, _ in excused if r.expert_accuracy < EXPERT_CORRECT]
+    ex_text = ", ".join(f"{r.expected}->{r.heard}" for r in bad_excused[:3]) or "none"
+    digit_fps = sum(
+        1 for r in fps if r.heard is not None and r.heard == NUMBER_DIGITS.get(r.expected)
+    )
+    any_digit_fps = sum(
+        1 for r in fps if r.heard is not None and any(c.isdigit() for c in r.heard)
+    )
+    n_correct = sum(r.expert_accuracy >= EXPERT_CORRECT for r in records)
     return {
+        "limitations": LIMITATIONS_TEMPLATE.format(
+            model=model, n_utts=len({r.uttid for r in records}),
+            bad=len(bad_excused), tp=m.tp_before, examples=ex_text,
+        ),
+        "genuine_errors_excused": len(bad_excused),
+        "baseline_false_flag_rate_on_expert_correct": {
+            "rate": (m.fp_before / n_correct) if n_correct else None,
+            "fp": m.fp_before,
+            "expert_correct": n_correct,
+        },
+        "digit_rendering_false_flags": digit_fps,
+        "false_flags_with_any_digit_in_heard": any_digit_fps,
         "words": n,
         "utterances": len({r.uttid for r in records}),
         "counts_by_status": dict(Counter(r.status.value for r in records)),
@@ -327,20 +395,32 @@ def summarise(records: list[WordRecord], language: str, seed: int, n_boot: int =
     }
 
 
+def split_ids(split: str) -> list[str]:
+    """Utterance ids of a corpus split directory (``test`` or ``train``)."""
+    from eval.fetch_speechocean import DEFAULT_DEST
+
+    return read_test_ids(next(DEFAULT_DEST.rglob(f"{split}/text")).parent)
+
+
 def main(argv: list[str] | None = None) -> None:
-    from eval.fetch_speechocean import DEFAULT_DEST, build_audio_index, load_scores
+    from eval.fetch_speechocean import build_audio_index, load_scores
 
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--model", default="base.en")
-    ap.add_argument("--limit", type=int, default=500)
-    ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--language", default="mandarin")
-    ap.add_argument("--results", type=Path, default=RESULTS_PATH)
+    ap.add_argument("--model", default="base.en",
+                    help="faster-whisper model size, e.g. base.en or small.en")
+    ap.add_argument("--limit", type=int, default=500,
+                    help="number of test-split utterances to sample")
+    ap.add_argument("--seed", type=int, default=0,
+                    help="seed for the utterance sample, excused-word samples and bootstrap")
+    ap.add_argument("--language", default="mandarin",
+                    help="L1 ruleset to evaluate (learner's first language)")
+    ap.add_argument("--results", type=Path, default=RESULTS_PATH,
+                    help="where to write the JSON summary")
     args = ap.parse_args(argv)
 
+    _cmu_words()  # fail before any transcription if the dictionary is missing
     scores = {u.uttid: u for u in load_scores()}
-    test_dir = next(DEFAULT_DEST.rglob("test/text")).parent
-    test_ids = read_test_ids(test_dir)
+    test_ids = split_ids("test")
     chosen = sample_ids(test_ids, args.limit, args.seed)
     audio_index = build_audio_index()
     missing_scores = [i for i in chosen if i not in scores]
@@ -360,7 +440,7 @@ def main(argv: list[str] | None = None) -> None:
             f"{info['skip_reasons']}); refusing to report an empty run."
         )
 
-    s = summarise(records, args.language, args.seed)
+    s = summarise(records, args.language, args.seed, model=args.model)
     s.update(
         model=args.model, seed=args.seed, limit=args.limit, language=args.language,
         split="test", sampled_ids=len(chosen),
@@ -401,7 +481,7 @@ def main(argv: list[str] | None = None) -> None:
         print(f"   {c['expected']} -> {c['heard']}, {c['expert_accuracy']}, "
               f"{c['status']}, excused={c['excused']}")
 
-    args.results.write_text(json.dumps(s, indent=2), encoding="utf-8")
+    args.results.write_text(json.dumps(s, indent=2) + "\n", encoding="utf-8")
     print(f"wrote {args.results}")
 
 

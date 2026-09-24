@@ -1,4 +1,13 @@
 {
+  "limitations": "Mandarin-L1 only (all 250 speakers of the speechocean762 corpus); ASR was base.en on CPU; one seeded sample of 500 utterances from the corpus test split. This is not a general product claim. Most baseline false flags are not accent-shaped (ASR/text mismatch such as in->into, or digits for number words), so the ASR sets the ceiling on what an accent filter can withdraw. Final-consonant deletion cannot distinguish an accent from a dropped inflection: 6 of 240 genuine errors (expert accuracy < 8.0) were excused, e.g. its->it, opened->open, looked->look.",
+  "genuine_errors_excused": 6,
+  "baseline_false_flag_rate_on_expert_correct": {
+    "rate": 0.23841961852861035,
+    "fp": 700,
+    "expert_correct": 2936
+  },
+  "digit_rendering_false_flags": 48,
+  "false_flags_with_any_digit_in_heard": 57,
   "words": 3219,
   "utterances": 500,
   "counts_by_status": {
