@@ -67,3 +67,46 @@ def test_every_expected_word_appears_once():
 
 def test_empty_read_is_all_omissions():
     assert statuses("the cat sat", "") == [WordStatus.OMISSION] * 3
+
+
+def test_repeated_wrong_attempts_stay_self_correction():
+    assert statuses("the cat sat", "the cot cot cat sat") == [
+        WordStatus.CORRECT, WordStatus.SELF_CORRECTION, WordStatus.CORRECT,
+    ]
+
+
+def test_extra_after_substitution_does_not_overwrite_it():
+    out = detect_miscues(normalize("a b"), normalize("a x y"))
+    assert out[1].status is WordStatus.SUBSTITUTION
+
+
+def test_transposition_does_not_give_omission_heard_text():
+    out = detect_miscues(normalize("a b c"), normalize("a c b"))
+    for w in out:
+        if w.status is WordStatus.OMISSION:
+            assert w.heard is None
+
+
+import pytest  # noqa: E402
+
+
+@pytest.mark.parametrize(
+    "expected, heard",
+    [
+        ("the cat sat", "the cot cot cat sat"),
+        ("a b", "a x y"),
+        ("a b c", "a c b"),
+        ("the cat sat", "the cat sat dog"),
+        ("a b", "a b c d e"),
+        ("the cat sat", "the cat cat sat"),
+        ("a b c d", "d c b a"),
+    ],
+)
+def test_structural_invariants(expected, heard):
+    exp = normalize(expected)
+    out = detect_miscues(exp, normalize(heard))
+    assert [w.index for w in out] == list(range(len(exp)))
+    assert [w.expected for w in out] == exp
+    for w in out:
+        if w.status is WordStatus.OMISSION:
+            assert w.heard is None

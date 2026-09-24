@@ -64,17 +64,28 @@ def detect_miscues(expected: list[str], heard: list[str]) -> list[WordResult]:
 def _apply_extras(results: list[WordResult], extras: dict[int, list[str]]) -> None:
     """Classify spoken words that align to no expected word.
 
+    This pass never modifies `heard`: it already holds the reader's first
+    attempt or the matched token, and OMISSION results must keep heard=None.
+
     For each extra token spoken before expected index `anchor`, the first
     matching rule applies:
       1. The token equals an adjacent expected word (anchor-1, anchor,
-         anchor+1): a REPETITION of that word (or, if that word had been
-         scored a substitution, a SELF_CORRECTION).
-      2. The expected word at `anchor` was read CORRECT and the token is a
-         different word but similar to it (ratio >=
-         SELF_CORRECTION_MIN_SIMILARITY): the reader tried the wrong word
-         first, then said the right one, so it becomes SELF_CORRECTION.
-      3. Otherwise a genuine INSERTION, marked on the word at `anchor`
-         (clamped to the last expected word).
+         anchor+1): a CORRECT target becomes REPETITION and a SUBSTITUTION
+         target becomes SELF_CORRECTION. A target in any other status is
+         left untouched.
+      2. The expected word at `anchor` is CORRECT or already SELF_CORRECTION
+         and the token is a different word but similar to it (ratio >=
+         SELF_CORRECTION_MIN_SIMILARITY): the reader tried a wrong word
+         first, then said the right one, so it is SELF_CORRECTION (repeated
+         wrong attempts stay SELF_CORRECTION).
+      3. Otherwise a genuine INSERTION on the word at `anchor` (clamped to
+         the last expected word), written only if that word is CORRECT or
+         already INSERTION. It never overwrites SUBSTITUTION, OMISSION,
+         REPETITION or SELF_CORRECTION.
+
+    With one status per expected word, the number of extra words is not
+    represented, and an insertion next to an already-flagged word is absorbed
+    by that word's existing status.
     """
     for anchor, tokens in extras.items():
         for token in tokens:
@@ -84,13 +95,12 @@ def _apply_extras(results: list[WordResult], extras: dict[int, list[str]]) -> No
                     target.status = WordStatus.SELF_CORRECTION
                 elif target.status is WordStatus.CORRECT:
                     target.status = WordStatus.REPETITION
-                target.heard = token
                 continue
 
             if anchor < len(results):
                 nxt = results[anchor]
                 if (
-                    nxt.status is WordStatus.CORRECT
+                    nxt.status in (WordStatus.CORRECT, WordStatus.SELF_CORRECTION)
                     and token != nxt.expected
                     and SequenceMatcher(None, token, nxt.expected).ratio()
                     >= SELF_CORRECTION_MIN_SIMILARITY
@@ -99,7 +109,10 @@ def _apply_extras(results: list[WordResult], extras: dict[int, list[str]]) -> No
                     continue
 
             idx = min(anchor, len(results) - 1)
-            if idx >= 0:
+            if idx >= 0 and results[idx].status in (
+                WordStatus.CORRECT,
+                WordStatus.INSERTION,
+            ):
                 results[idx].status = WordStatus.INSERTION
 
 
