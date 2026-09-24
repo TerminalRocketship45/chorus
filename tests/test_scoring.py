@@ -76,3 +76,36 @@ def test_accent_excused_words_count_as_correct():
 def test_accent_excused_ignored_when_word_already_correct():
     words = [w(0, WordStatus.CORRECT, excused=True)]
     assert score_with_accent_excused(words, duration_s=60.0).accuracy == 1.0
+
+
+def test_omission_with_accent_excused_stays_error():
+    words = [
+        w(0, WordStatus.CORRECT),
+        w(1, WordStatus.OMISSION, excused=True),
+    ]
+    raw = score_reading(words, duration_s=60.0)
+    adjusted = score_with_accent_excused(words, duration_s=60.0)
+    assert raw.accuracy == 0.5
+    assert adjusted.accuracy == 0.5
+
+
+def test_insertion_with_accent_excused_stays_error():
+    words = [
+        w(0, WordStatus.CORRECT),
+        w(1, WordStatus.INSERTION, excused=True),
+    ]
+    raw = score_reading(words, duration_s=60.0)
+    adjusted = score_with_accent_excused(words, duration_s=60.0)
+    assert raw.accuracy == 0.5
+    assert adjusted.accuracy == 0.5
+
+
+def test_hesitation_does_not_count_against_accuracy():
+    words = [
+        w(0, WordStatus.CORRECT),
+        w(1, WordStatus.HESITATION),
+        w(2, WordStatus.CORRECT),
+    ]
+    s = score_reading(words, duration_s=60.0)
+    assert s.accuracy == 1.0
+    assert s.correct_words == 3

@@ -2,10 +2,17 @@
 
 WCPM (words correct per minute) is the standard oral reading fluency measure
 and is what teacher-administered running records report.
+
+Notes on WCPM: the duration_s parameter is the elapsed time of the whole
+recording as supplied by the caller. WCPM is calculated as:
+  WCPM = (correct_words / duration_s) * 60
+
+Leading or trailing silence in the recording lowers WCPM. Callers wanting
+the standard first-word-to-last-word figure must pass a trimmed duration.
 """
 from __future__ import annotations
 
-from chorus.types import ERROR_STATUSES, ReadingScore, WordResult
+from chorus.types import ERROR_STATUSES, ReadingScore, WordResult, WordStatus
 
 
 def score_reading(
@@ -28,11 +35,19 @@ def _score(
     long_pause_s: float,
     excuse_accents: bool,
 ) -> ReadingScore:
+    """Score the reading passage.
+
+    The duration_s parameter is the elapsed time of the whole recording
+    as supplied by the caller. WCPM = correct_words / duration_s * 60.
+    Leading or trailing silence therefore lowers WCPM; callers wanting
+    the standard first-word-to-last-word figure must pass a trimmed duration.
+    """
     total = len(words)
     correct = sum(
         1
         for w in words
-        if w.status not in ERROR_STATUSES or (excuse_accents and w.accent_excused)
+        if w.status not in ERROR_STATUSES
+        or (excuse_accents and w.accent_excused and w.status is WordStatus.SUBSTITUTION)
     )
     accuracy = correct / total if total else 0.0
     wcpm = (correct / duration_s) * 60.0 if duration_s > 0 else 0.0
@@ -47,7 +62,7 @@ def _score(
 
 
 def _count_long_pauses(words: list[WordResult], long_pause_s: float) -> int:
-    """Count gaps between consecutive timed words that exceed the threshold."""
+    """Count gaps between consecutive timed words that meet or exceed the threshold."""
     timed = [w for w in words if w.start is not None and w.end is not None]
     return sum(
         1
