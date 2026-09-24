@@ -19,29 +19,79 @@ def test_empty_text_returns_empty(silence_wav):
     assert align_words(silence_wav, "") == []
 
 
+def test_digit_token_raises_value_error(silence_wav):
+    with pytest.raises(ValueError, match="3"):
+        align_words(silence_wav, "the 3 cats")
+
+
+def test_all_offending_tokens_are_named(silence_wav):
+    with pytest.raises(ValueError) as exc:
+        align_words(silence_wav, "the 3 cat-sat")
+    assert "'3'" in str(exc.value) and "'cat-sat'" in str(exc.value)
+
+
+def test_hyphen_token_raises_value_error(silence_wav):
+    with pytest.raises(ValueError, match="cat-sat"):
+        align_words(silence_wav, "the cat-sat")
+
+
+def test_non_ascii_token_raises_value_error(silence_wav):
+    with pytest.raises(ValueError, match="caf"):
+        align_words(silence_wav, "the caf\u00e9")
+
+
+def test_validation_runs_after_missing_file_check(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        align_words(tmp_path / "nope.wav", "the 3 cats")
+
+
+def test_empty_text_skips_validation(silence_wav):
+    assert align_words(silence_wav, "   ") == []
+
+
+def _duration(path):
+    with wave.open(str(path), "rb") as f:
+        return f.getnframes() / f.getframerate()
+
+
+TEXT = "the cat sat on the mat"
+
+
 @pytest.mark.slow
 def test_alignment_returns_one_timing_per_word(cat_wav):
-    out = align_words(cat_wav, "the cat sat on the mat")
-    assert len(out) == 6
-    assert [t.word for t in out] == ["the", "cat", "sat", "on", "the", "mat"]
+    out = align_words(cat_wav, TEXT)
+    assert [t.word for t in out] == TEXT.split()
 
 
 @pytest.mark.slow
-def test_timings_are_monotonic(cat_wav):
-    out = align_words(cat_wav, "the cat sat on the mat")
+def test_timings_are_ordered_and_inside_audio(cat_wav):
+    out = align_words(cat_wav, TEXT)
+    dur = _duration(cat_wav)
     for prev, nxt in zip(out, out[1:]):
-        assert prev.start <= nxt.start
+        assert prev.start < nxt.start
+        assert prev.end <= nxt.start + 1e-6
+    for t in out:
+        assert 0 <= t.start < t.end <= dur + 0.02
+    assert out[-1].end < dur - 0.3
 
 
 @pytest.mark.slow
-def test_timings_lie_within_audio(cat_wav):
-    with wave.open(str(cat_wav), "rb") as f:
-        duration = f.getnframes() / f.getframerate()
-    for t in align_words(cat_wav, "the cat sat on the mat"):
-        assert 0 <= t.start < t.end <= duration + 0.05
+def test_scores_reflect_a_good_match(cat_wav):
+    out = align_words(cat_wav, TEXT)
+    assert sum(t.score for t in out) / len(out) > 0.5
+    assert all(0.3 < t.score <= 1.0 for t in out)
 
 
 @pytest.mark.slow
-def test_scores_are_probabilities(cat_wav):
-    for t in align_words(cat_wav, "the cat sat on the mat"):
-        assert 0.0 <= t.score <= 1.0
+def test_scrambled_transcript_scores_lower(cat_wav):
+    def mean(text):
+        out = align_words(cat_wav, text)
+        return sum(t.score for t in out) / len(out)
+
+    assert mean(TEXT) - mean("mat the on sat cat the") >= 0.2
+
+
+@pytest.mark.slow
+def test_apostrophe_word_aligns(cat_wav):
+    out = align_words(cat_wav, "the cat's")
+    assert [t.word for t in out] == ["the", "cat's"]
