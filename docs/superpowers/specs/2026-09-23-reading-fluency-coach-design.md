@@ -64,11 +64,11 @@ Audio capture (browser mic)
         v
 [3] Forced alignment  <------- expected passage text
         |
-        v  word-level timestamps + phoneme posteriors
+        v  word-level timestamps (phoneme posteriors: Phase 2 / stretch)
 [4] Miscue detection  -------> per-word status
         |
         v
-[5] Scoring  ----------------> accuracy %, WCPM, pacing, GOP phoneme scores
+[5] Scoring  ----------------> accuracy %, WCPM, pacing (GOP phoneme scores: Phase 2 / stretch)
         |
         v
 [6] L1-AWARE FILTER  --------> accent vs. genuine miscue   [CORE CONTRIBUTION]
@@ -84,9 +84,9 @@ Audio capture (browser mic)
 
 **[1] Capture.** Browser MediaRecorder. Passage rendered on screen. Records a single continuous read.
 
-**[2] ASR.** Whisper. For elementary audio, Kid-Whisper's published fine-tuned weights (MyST WER 13.93% to 9.11% on Whisper-Small; 13.23% to 8.61% on Medium). Produces the hypothesis of what was actually said, independent of the expected text.
+**[2] ASR.** Whisper. Phase 1 uses stock base.en/small.en; Kid-Whisper weights are a Phase 2 swap behind the `asr.transcribe` adapter. For elementary audio the plan is Kid-Whisper's published fine-tuned weights (MyST WER 13.93% to 9.11% on Whisper-Small; 13.23% to 8.61% on Medium). Produces the hypothesis of what was actually said, independent of the expected text.
 
-**[3] Forced alignment.** Aligns audio against the *expected* passage text to obtain word-level timestamps and phoneme-level posteriors. Benchmark Montreal Forced Aligner against WhisperX and pick one; MFA is documented as more accurate for word-level timestamps, WhisperX is faster.
+**[3] Forced alignment.** Aligns audio against the *expected* passage text to obtain word-level timestamps (phoneme-level posteriors are Phase 2 / stretch). Phase 1 uses torchaudio's MMS_FA bundle because it runs on CPU with no external binary. The planned Montreal Forced Aligner vs. WhisperX benchmark did not happen; MFA is documented as more accurate for word-level timestamps, WhisperX is faster.
 
 **[4] Miscue detection.** Classify each expected word using the Running Record taxonomy teachers already use:
 
@@ -98,7 +98,7 @@ Derived by aligning the ASR hypothesis against the expected text (edit-distance 
 - Accuracy = correct words / total words
 - WCPM = correct words / elapsed minutes (the standard ORF metric)
 - Pacing = distribution of inter-word pauses, flagging pauses above a threshold
-- Phoneme-level pronunciation via GOP (Goodness of Pronunciation)
+- Phoneme-level pronunciation via GOP (Goodness of Pronunciation) — Phase 2 / stretch; not in the Phase 1 engine
 
 **[6] L1-aware filter — the core contribution.** See §8.
 
@@ -153,13 +153,17 @@ Rules are stored as declarative data (JSON), one file per language, so adding a 
 
 Status labels below use the terminology defined in §9 (*validated* / *shipped* / *drafted*).
 
-**Somali** — *shipped in v1.* Deepest-encoded of the four district languages.
-- No word-initial consonant clusters; epenthetic vowel inserted ("stop" becomes `[sitop]` or `[istop]`)
-- Syllable structure CV, CVC, V; rarely more than two consonants together, so clusters like `/str/` are reduced or broken
+**Somali** — *shipped in v1.* Best-sourced of the four district languages (a Minnesota-based researcher, Koffi 2011).
+
+*Encoded:*
+- Syllable structure CV, CVC, V; rarely more than two consonants together, so clusters like `/str/` are reduced or broken (the `cluster_reduction` flag, which currently applies to any consonant run, not only word-initial s-clusters)
 - Phonemes absent from Somali, yielding predictable substitutions: `/p/ /v/ /ʒ/ /tʃ/ /dʒ/ /ŋ/ /θ/ /ð/ /ɹ/`
+- Koffi (2011), *Pronunciation of S-Clusters in Somali-Accented English* — St. Cloud State University, a Minnesota source
+
+*Described, not yet encoded:*
+- No word-initial consonant clusters; epenthetic vowel inserted ("stop" becomes `[sitop]` or `[istop]`). The `epenthesis` flag is loaded from the data but nothing matches on it yet
 - Geminate consonants exist in Somali but not English, producing lengthening
 - Intervocalic glottal stops transfer into English
-- Koffi (2011), *Pronunciation of S-Clusters in Somali-Accented English* — St. Cloud State University, a Minnesota source
 
 **Hmong** — *drafted; stretch scope.*
 - Briggs (1984): the three most frequent processes are **cluster reduction, sonorant deviation, prevocalic voicing**
@@ -184,15 +188,23 @@ The canonical reference for L1 interference — **Swan & Smith, *Learner English
 
 The team will distribute the app to users but will **not** run a feedback-and-iterate loop. All correctness claims therefore rest on offline evaluation against labeled public data, not user response.
 
-**Validation (measured).** speechocean762 provides expert phoneme-level accuracy labels on non-native speakers. With the Mandarin rule set encoded, measure on a held-out split:
+**Validation (measured).** speechocean762 provides expert word-level and phoneme-level accuracy labels on non-native speakers. With the Mandarin rule set encoded, Phase 1 measures on a seeded sample of its test split, at the word level:
 
-- **False-positive reduction** — proportion of expert-judged-correct phonemes that a baseline flags as errors and the L1 filter correctly reclassifies as accent
-- **Retention of genuine miscue detection** — proportion of expert-judged-incorrect phonemes still flagged after filtering
+- **False-positive reduction** — proportion of expert-judged-correct words (expert word accuracy of 8.0 or above) that a baseline flags as errors and the L1 filter correctly reclassifies as accent
+- **Retention of genuine miscue detection** — proportion of expert-judged-incorrect words (expert word accuracy below 8.0) still flagged after filtering
+
+The measurement is at the word level, deliberately. The expert labels say how well each word was pronounced but cannot say which phoneme the speaker actually produced, so a phoneme-level check against them would need a guess about what was said. A word is flagged when the transcript differs from the expected word, and the filter then asks whether the phonemes of the expected and heard words differ in a way the reader's first language predicts.
+
+**Not measured in Phase 1.**
 - Correlation of predicted vs. expert sentence-level accuracy, fluency, and prosody scores
 - Baseline WCPM and word-accuracy against the corpus
 
-**Headline claim format:**
-> "On non-native readers, the L1-aware filter reduced false error flags by X% while retaining Y% of genuine miscue detection."
+**Headline claim (measured):**
+> "On 500 Mandarin-L1 utterances from the speechocean762 test split (base.en, CPU), the L1-aware filter withdrew 2.2% of false error flags (14 of 645, 95% CI 1.1% to 3.4%) while retaining 97.5% of genuine miscue detection (233 of 239, 95% CI 95.4% to 99.2%)."
+
+Context, so the small number is not misread: the baseline without the filter flags 22.0% of expert-correct words (645 of 2,936), mostly for reasons unrelated to accent. Of those 645 false flags, 520 are substitutions, 48 are omissions and 77 are insertions; only substitutions are the kind of thing an accent filter can touch. The sample is 3,219 words from 500 utterances, one seed, one ASR model.
+
+The measured effect of the filter on this sample is small, and nobody should quote it as a large win. The reason is that the speech recognizer, not the accent filter, sets the ceiling: most false flags come from the transcript differing from the passage for non-accent reasons (a word the recognizer mangled, dropped or added), and the filter can only withdraw a substitution whose phoneme change the reader's first language predicts. It also withdrew 6 of the 239 genuine errors the baseline flagged (final-consonant deletion cannot tell an accent from a dropped inflection, e.g. opened -> open), which is why retention is reported next to it.
 
 **Extension (documented, not measured).** Every non-Mandarin rule set — Somali and Spanish in v1, Hmong and Karen if the stretch scope in §11 is reached — is built from published phonological descriptions and is **not** validated against labeled data, because no comparable labeled corpus exists for these languages.
 
@@ -210,9 +222,10 @@ The claim being made is therefore: *the method is validated on Mandarin, and ext
 
 | Metric | This system | Baseline (no L1 filter) |
 |---|---|---|
-| False error flags on accented-correct reads | measured | measured |
-| Genuine miscues retained | measured | measured |
-| Sentence-score correlation vs. expert | measured | measured |
+| False error flags on expert-correct words (of 2,936) | 631 | 645 |
+| Genuine miscues still flagged (of the 239 expert-mispronounced words the baseline flags) | 233 | 239 |
+
+Sentence-score correlation vs. expert is not measured in Phase 1 and has no row here.
 
 **No Whisper fine-tuning.** With 33 days, fine-tuning Whisper would consume the window. Use Kid-Whisper's weights. If a trained component is wanted, fine-tune the GOPT-style scoring head on speechocean762 — cheap, fast, and it yields a benchmarked number.
 
@@ -230,7 +243,7 @@ The claim being made is therefore: *the method is validated on Mandarin, and ext
 **v1 — must ship**
 1. Record a passage read-aloud in the browser
 2. ASR + forced alignment producing word-level output
-3. Miscue classification (7 categories)
+3. Miscue classification (categories produced on corpus audio: correct, substitution, omission, insertion, self-correction; repetition detected but unobserved on corpus audio; hesitation deferred)
 4. Accuracy %, WCPM, pacing
 5. L1 filter with Somali + Spanish + Mandarin rule sets
 6. Word-by-word feedback UI with tap-to-hear

@@ -1,7 +1,7 @@
 {
   "language": "spanish",
   "status": "shipped",
-  "notes": "Spanish lacks the English dental fricatives and several vowel contrasts, and disallows word-initial /s/+consonant clusters without a preceding vowel.",
+  "notes": "Spanish lacks the English dental fricatives and several vowel contrasts, and disallows word-initial /s/+consonant clusters without a preceding vowel (described only; no rule encodes it in this file).",
   "substitutions": {
     "TH": ["T", "S"],
     "DH": ["D"],

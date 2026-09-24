@@ -1,7 +1,7 @@
 {
   "language": "mandarin",
   "status": "validated",
-  "notes": "The language designated for validation against speechocean762 (250 non-native speakers, all Mandarin L1); validation results are pending. Mandarin disallows most final consonants and lacks the English dental fricatives.",
+  "notes": "The language designated for validation against speechocean762 (250 non-native speakers, all Mandarin L1). Validated against speechocean762 (500 test-split utterances, base.en, CPU): 2.2% false-flag reduction (14 of 645) at 97.5% retention (233 of 239); see eval/results.json; Mandarin-L1 speakers only. Mandarin disallows most final consonants and lacks the English dental fricatives.",
   "substitutions": {
     "TH": ["S", "T", "F"],
     "DH": ["D", "Z"],

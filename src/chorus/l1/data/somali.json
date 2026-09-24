@@ -1,7 +1,7 @@
 {
   "language": "somali",
   "status": "shipped",
-  "notes": "Somali lacks several English phonemes and disallows word-initial consonant clusters. Syllable structure is CV, CVC, V, rarely more than two consonants together.",
+  "notes": "Somali lacks several English phonemes and disallows word-initial consonant clusters. Syllable structure is CV, CVC, V, rarely more than two consonants together. The cluster_reduction flag currently applies to any consonant run, not only word-initial s-clusters (the cited source concerns those), so it can excuse a change like \"plan\" -> \"pan\".",
   "substitutions": {
     "P": ["B"],
     "V": ["F", "B"],

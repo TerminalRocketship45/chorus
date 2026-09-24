@@ -52,7 +52,7 @@ Nothing here is committed to git. `eval/data/` and `.venv/` are in `.gitignore`.
 | What | Needed by | How | Size / notes |
 | --- | --- | --- | --- |
 | nltk `averaged_perceptron_tagger_eng` | `g2p_en` (phoneme lookup) | `python -m nltk.downloader averaged_perceptron_tagger_eng` (required, see below) | not measured |
-| nltk `cmudict` | the evaluation (real-word check on excused words) | `python -m nltk.downloader cmudict` | the evaluation checks at start and prints this command if it is missing; whether the test suite needs it was not checked (it is present here) |
+| nltk `cmudict` | the evaluation (real-word check on excused words) | `python -m nltk.downloader cmudict` | the evaluation checks at start and prints this command if it is missing; the test suite needs it too (see below) |
 | Whisper `base.en` | `transcribe` | automatic on first call, Hugging Face cache | about 75 MB (from the task notes, not measured) |
 | torchaudio `MMS_FA` bundle | `align_words` | automatic on first call, torch hub cache | large; size not measured |
 | speechocean762 corpus | the evaluation | `python -m eval.fetch_speechocean` | archive is 520,810,923 bytes (about 497 MiB, verified from the file on disk); the download took about 55 minutes on this machine (from the task notes). Extracts under `eval/data/speechocean762/`; the marker file `.extracted` means extraction finished |
@@ -68,7 +68,11 @@ python -m nltk.downloader averaged_perceptron_tagger_eng
 python -m nltk.downloader cmudict
 ```
 
-`cmudict` is needed by the evaluation, which checks for it at start and stops with the command above if it is missing. Whether anything else needs it was not checked.
+`cmudict` is needed by the evaluation, which checks for it at start and stops with the command above if it is missing. The test suite needs it as well: `tests/test_evaluate_l1_filter.py::test_summarise_limitations_and_digit_counts` calls `summarise`, which reaches `_cmu_words()`.
+
+So the fast suite needs the nltk data: the `_eng` tagger for every test that reaches `to_phonemes`, and `cmudict` for the evaluation tests. The tests do not skip cleanly without it; they fail.
+
+One more thing to know: importing `g2p_en` attempts a network download of the legacy resources (`averaged_perceptron_tagger` and `cmudict`, `g2p_en/g2p.py` lines 21-28) when they are not found, before the `_eng` tagger `LookupError` appears. On an offline machine that first import can stall or print download errors; run the two downloads above first.
 
 Where the data lands. On this machine `nltk.data.find` reports:
 
@@ -91,13 +95,13 @@ $env:PYTHONPATH="src;."; .venv\Scripts\python -m eval.evaluate_l1_filter --help
 
 `pytest.ini` sets `pythonpath = src`, but only pytest reads it. Any plain `python` command that imports `chorus` needs `PYTHONPATH` set. Verified: without it, `python -m eval.evaluate_l1_filter --help` and `from chorus.pipeline import analyze` both fail with `ModuleNotFoundError: No module named 'chorus'`. The separator is `;` on Windows and `:` on Linux.
 
-Fast tests (verified: 150 passed, 11 deselected, about 16 s):
+Fast tests (verified after the final fix wave: 181 passed, 11 deselected, about 15 s):
 
 ```
 .venv/Scripts/python -m pytest -m "not slow"
 ```
 
-All tests including those marked `slow` (verified: 161 passed in about 88 s on this machine with models and corpus already cached; on a fresh machine they download models, and the corpus test skips itself if the corpus is absent):
+All tests including those marked `slow` (verified after the final fix wave: 192 passed in about 73 s on this machine with models and corpus already cached; on a fresh machine they download models, and the corpus test skips itself if the corpus is absent):
 
 ```
 .venv/Scripts/python -m pytest -m "slow or not slow"
@@ -105,13 +109,13 @@ All tests including those marked `slow` (verified: 161 passed in about 88 s on t
 
 `pytest.ini` has no `-m` filter in `addopts`, so plain `pytest` already runs everything and is equivalent to the command above.
 
-One file (verified: 21 passed):
+One file (verified: 44 passed):
 
 ```
 .venv/Scripts/python -m pytest tests/test_miscue.py
 ```
 
-The evaluation. It writes `eval/results.json`, and caches transcripts in `eval/data/transcripts_<model>.json`, so a re-run does not call Whisper again. Only its `--help` was re-run for this document; the numbers below come from the existing `eval/results.json`:
+The evaluation. It writes `eval/results.json`, and caches transcripts in `eval/data/transcripts_<model>.json`, so a re-run does not call Whisper again. It was re-run from the transcript cache after the number-word normalisation (no Whisper call); the numbers below come from the regenerated `eval/results.json`:
 
 ```
 PYTHONPATH="src;." .venv/Scripts/python -m eval.evaluate_l1_filter --model base.en --limit 500 --seed 0 --language mandarin
@@ -170,33 +174,38 @@ return WhisperModel(model_size, device="cpu", compute_type="int8")
 
 To use a CUDA GPU this would need to become something like `device="cuda"` with a compute type such as `"float16"` (or `"int8_float16"`). These exact values were not tested. The module docstring (lines 1-9) and the `_get_model` docstring (line 25) also describe the CPU and int8 assumption, and the module docstring mentions a 2 GB GPU and says not to use the `medium` model. That change is not part of this branch.
 
-The alignment stage runs on CPU too. `src/chorus/align.py` never selects a device: the MMS_FA model comes from `bundle.get_model()` and the waveform from `_load_audio`, and neither is moved with `.to(device)` (the only `.to(...)` call, line 45, converts dtype to float32). Putting alignment on the GPU would be a separate change, also not in this branch.
+The alignment stage runs on CPU too. `src/chorus/align.py` never selects a device: the MMS_FA model comes from `bundle.get_model()` and the waveform from `_load_audio`, and neither is moved with `.to(device)` (the only `.to(...)` call, line 48, converts dtype to float32). Putting alignment on the GPU would be a separate change, also not in this branch.
 
 ## Current measured result
 
-From `eval/results.json` (`base.en`, seed 0, Mandarin, 500 utterances from the speechocean762 test split, 3,219 words):
+From `eval/results.json` (`base.en`, seed 0, Mandarin, 500 utterances from the speechocean762 test split, 3,219 words; 0 utterances skipped):
 
 | Metric | Value | 95% CI |
 | --- | --- | --- |
-| fp_reduction (false flags on expert-correct words that the filter withdrew) | 2.0% (14 of 700) | [1.0%, 3.2%] |
-| retention (expert-mispronounced words still flagged after filtering) | 97.5% (234 of 240) | [95.4%, 99.2%] |
+| fp_reduction (false flags on expert-correct words that the filter withdrew) | 2.2% (14 of 645) | [1.1%, 3.4%] |
+| retention (expert-mispronounced words still flagged after filtering) | 97.5% (233 of 239) | [95.4%, 99.2%] |
 
 The CIs are bootstrap intervals (1,000 resamples).
 
-The baseline flags 23.8% (700 of 2,936) of expert-correct words, mostly for reasons unrelated to accent, so the ASR sets the ceiling on what an accent filter can withdraw.
+The effect of the filter on this sample is small. The baseline (no filter) flags 22.0% (645 of 2,936) of expert-correct words, mostly for reasons unrelated to accent, so the ASR sets the ceiling on what an accent filter can withdraw. `false_flags_by_status` breaks those 645 baseline false flags down: 520 substitutions, 48 omissions, 77 insertions (total 645, equal to `fp_before`). Only the substitution share is the kind of thing an accent filter can touch. Overall, 27.5% of all words are flagged by the baseline and 26.8% after filtering.
+
+Number-word normalisation changed this result. Before it, the same sample gave 14 of 700 false flags withdrawn (2.0%) and 234 of 240 genuine errors retained (97.5%); 55 baseline false flags and one genuine-error flag (expected "one", ASR "1") disappeared once digits were mapped to words. After it, `digit_rendering_false_flags` is 0 and `false_flags_with_any_digit_in_heard` is 1; these two fields now act as a regression indicator for `miscue.normalize`.
 
 The `limitations` field, verbatim:
 
-> Mandarin-L1 only (all 250 speakers of the speechocean762 corpus); ASR was base.en on CPU; one seeded sample of 500 utterances from the corpus test split. This is not a general product claim. Most baseline false flags are not accent-shaped (ASR/text mismatch such as in->into, or digits for number words), so the ASR sets the ceiling on what an accent filter can withdraw. Final-consonant deletion cannot distinguish an accent from a dropped inflection: 6 of 240 genuine errors (expert accuracy < 8.0) were excused, e.g. its->it, opened->open, looked->look.
+> Mandarin-L1 only (all 250 speakers of the speechocean762 corpus); ASR was base.en on CPU; one seeded sample of 500 utterances from the corpus test split. This is not a general product claim. Most baseline false flags are not accent-shaped (ASR/text mismatch such as in->into), so the ASR sets the ceiling on what an accent filter can withdraw. Number words that Whisper renders as digits are normalised by miscue.normalize for integers 0-999 (larger or mixed tokens such as 2599 or 1st are left unchanged). Of the 645 baseline false flags, 520 are substitutions, 48 omissions and 77 insertions; an INSERTION-status false flag is a word read correctly with an extra word nearby, which the accent filter cannot touch. Final-consonant deletion cannot distinguish an accent from a dropped inflection: 6 of 239 genuine errors (expert accuracy < 8.0) were excused, e.g. its->it, opened->open, looked->look.
 
 ## Known limitations and deferred items
 
 None of these are working; do not treat them as such.
 
 - **Epenthesis and hesitation.** `epenthesis` is loaded from the rule data (`src/chorus/l1/engine.py`; set in the Mandarin, Somali and Spanish data files) but `is_accent_variant` does not match on it. Deferred (controller ruling R6). The `HESITATION` status is defined in `src/chorus/types.py` but `detect_miscues` never assigns it; pacing is covered by `long_pauses`.
-- **The accent filter is phonology-only.** It cannot tell an accent from a different real word (rock -> lock, pig -> big), or from a dropped inflection (opened -> open, looked -> look). In the measured sample, 6 of 240 genuine errors were excused.
+- **The accent filter is phonology-only.** It cannot tell an accent from a different real word (rock -> lock, pig -> big), or from a dropped inflection (opened -> open, looked -> look). In the measured sample, 6 of 239 genuine errors were excused.
 - **Only Mandarin is `validated`** (measured against expert labels), because all 250 speakers in speechocean762 are Mandarin L1. Somali and Spanish are `shipped`: rules taken from published descriptions, not measured. Hmong and Karen are not encoded yet.
-- **Number words.** Whisper renders spoken number words as digits ("two" -> "2"). `miscue.normalize` does not map digits to words, so correctly read number words are scored as substitutions. In the measured sample, 57 of the 700 baseline false flags contain a digit, and 48 are plain word -> digit renderings. Not fixed in this branch.
+- **Number words.** Whisper renders spoken number words as digits ("two" -> "2"). `miscue.normalize` now maps canonical integers 0 to 999 to English words on both the passage and the transcript ("21" -> "twenty one", "101" -> "one hundred one", no "and"), so they match. Larger or mixed tokens such as 2599 or 1st are left unchanged and stay untimed (the aligner takes letters and apostrophes only). Decimals and thousands separators are split by the punctuation rule first, so "3.5" reads as "three five" and "1,000" as "one" and "000".
+- **INSERTION can sit on a correctly read word.** With one status per expected word, an insertion (an extra word the reader added) is recorded on an adjacent expected word only when that word was read correctly, so a word with status INSERTION can have `heard == expected`. In the measured sample, 77 of the 645 baseline false flags are of this kind (`false_flags_by_status`). A UI must not colour these as misread; render them as "extra word added nearby". The number of extra words is not represented.
+- **Somali `cluster_reduction` fires on any consonant run.** The flag currently applies to any consonant run, not only word-initial s-clusters (the cited source concerns those), so it can excuse a change like "plan" -> "pan". The rule was not changed in this branch.
+- **Alignment cost grows faster than the audio length, with no length guard.** Measured on this machine (CPU, alignment only, the fixture tiled to length): 10 s of audio took 4.8 s, 30 s took 9.9 s, 60 s took 21.8 s and 120 s took 63.5 s. `align_words` does one forward pass over the whole waveform, with no chunking, cap or timeout. Phase 2 needs chunking or a duration cap before accepting real recordings of arbitrary length.
 - **Alignment.** `align_words` rebuilds the alignment model on every call (about 2 s, from the task notes; not re-timed) and accepts only `[a-z']+` words. The pipeline aligns only alignable, non-omitted words.
 - **WCPM.** `analyze` uses the whole recording duration, so leading and trailing silence lowers WCPM.
 - **No voice-activity filter.** faster-whisper's `vad_filter` defaults to `False` and the code does not set it, so hallucinated words on quiet real audio would appear as insertions. This is untested on real recordings. The only spoken fixture is a synthetic Windows text-to-speech voice, which proves the plumbing only, not accuracy on children or accented readers.
