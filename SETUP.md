@@ -51,17 +51,43 @@ Nothing here is committed to git. `eval/data/` and `.venv/` are in `.gitignore`.
 
 | What | Needed by | How | Size / notes |
 | --- | --- | --- | --- |
-| nltk `averaged_perceptron_tagger_eng` | `g2p_en` (phoneme lookup) | `python -m nltk.downloader averaged_perceptron_tagger_eng` (whether g2p_en fetches it on its own was not checked) | not measured |
-| nltk `cmudict` | the evaluation (real-word check on excused words) | `python -m nltk.downloader cmudict` | the evaluation checks at start and prints this command if it is missing |
+| nltk `averaged_perceptron_tagger_eng` | `g2p_en` (phoneme lookup) | `python -m nltk.downloader averaged_perceptron_tagger_eng` (required, see below) | not measured |
+| nltk `cmudict` | the evaluation (real-word check on excused words) | `python -m nltk.downloader cmudict` | the evaluation checks at start and prints this command if it is missing; whether the test suite needs it was not checked (it is present here) |
 | Whisper `base.en` | `transcribe` | automatic on first call, Hugging Face cache | about 75 MB (from the task notes, not measured) |
 | torchaudio `MMS_FA` bundle | `align_words` | automatic on first call, torch hub cache | large; size not measured |
 | speechocean762 corpus | the evaluation | `python -m eval.fetch_speechocean` | archive is 520,810,923 bytes (about 497 MiB, verified from the file on disk); the download took about 55 minutes on this machine (from the task notes). Extracts under `eval/data/speechocean762/`; the marker file `.extracted` means extraction finished |
 
 Run these from `KasRep`.
 
+### nltk data is a mandatory step
+
+`g2p_en` does not fetch `averaged_perceptron_tagger_eng` itself with nltk 3.9.x. On this machine the first test run failed with `LookupError: ... taggers/averaged_perceptron_tagger_eng` until the resource was downloaded by hand (Task 5 report). Without it, the first phoneme lookup (`to_phonemes`) fails, which covers any `analyze` call, the miscue-to-L1 path and the L1 tests. Run this BEFORE the first test or evaluation run:
+
+```
+python -m nltk.downloader averaged_perceptron_tagger_eng
+python -m nltk.downloader cmudict
+```
+
+`cmudict` is needed by the evaluation, which checks for it at start and stops with the command above if it is missing. Whether anything else needs it was not checked.
+
+Where the data lands. On this machine `nltk.data.find` reports:
+
+```
+taggers/averaged_perceptron_tagger_eng -> KasRep\.venv\share\nltk_data\taggers\averaged_perceptron_tagger_eng
+corpora/cmudict                        -> C:\Users\rohan\AppData\Roaming\nltk_data\corpora\cmudict
+```
+
+The tagger was downloaded with `-d .venv/share/nltk_data`, which is on `nltk.data.path`. With no `-d`, nltk's `Downloader.default_download_dir` (read in the installed nltk) uses the first existing, writable entry of `nltk.data.path`, and otherwise `%APPDATA%\nltk_data` on Windows or `~/nltk_data` elsewhere. Which one that is depends on the machine, so check with `python -c "import nltk; print(nltk.data.path)"`.
+
 ## Running things
 
 Run all commands from `KasRep`. The examples use the Windows venv path; on Linux use `.venv/bin/python`.
+
+The `PYTHONPATH=... command` prefixes below assume Git Bash (or a POSIX shell); they fail in PowerShell and cmd. PowerShell equivalent, verified for the `--help` command (it prints the usage text):
+
+```
+$env:PYTHONPATH="src;."; .venv\Scripts\python -m eval.evaluate_l1_filter --help
+```
 
 `pytest.ini` sets `pythonpath = src`, but only pytest reads it. Any plain `python` command that imports `chorus` needs `PYTHONPATH` set. Verified: without it, `python -m eval.evaluate_l1_filter --help` and `from chorus.pipeline import analyze` both fail with `ModuleNotFoundError: No module named 'chorus'`. The separator is `;` on Windows and `:` on Linux.
 
@@ -76,6 +102,8 @@ All tests including those marked `slow` (verified: 161 passed in about 88 s on t
 ```
 .venv/Scripts/python -m pytest -m "slow or not slow"
 ```
+
+`pytest.ini` has no `-m` filter in `addopts`, so plain `pytest` already runs everything and is equivalent to the command above.
 
 One file (verified: 21 passed):
 
@@ -122,7 +150,7 @@ Copy or clone:
 - The repo at this branch.
 - Optionally `eval/data/transcripts_base.en.json`. It is git-ignored, keyed by utterance id, and does not depend on the machine, so it saves re-transcribing with the same model. It is valid only for `base.en`: the model name is part of the file name, and a `small.en` run uses its own `transcripts_small.en.json`.
 
-Install: create a venv (preferably without `--system-site-packages`), run `pip install -r requirements.txt`, then fetch the nltk data and the corpus as in the table above. A CUDA-enabled torch is needed for the GPU (see the torch note above; unverified).
+Install: create a venv (preferably without `--system-site-packages`), run `pip install -r requirements.txt`, then run the two nltk downloads (mandatory, see the nltk section above) and fetch the corpus. A CUDA-enabled torch is needed for the GPU (see the torch note above; unverified).
 
 Bigger evaluation. The corpus test split has 2,500 utterance ids, so 2,500 is the maximum for `--limit`:
 
