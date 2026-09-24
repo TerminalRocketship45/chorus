@@ -19,3 +19,9 @@ def silence_wav(tmp_path_factory) -> Path:
         f.setframerate(16000)
         f.writeframes(samples.tobytes())
     return path
+
+
+@pytest.fixture(scope="session")
+def cat_wav() -> Path:
+    """A real spoken "The cat sat on the mat." (mono, 16 kHz, 16-bit) for alignment tests."""
+    return Path(__file__).parent / "fixtures" / "the_cat_sat.wav"
