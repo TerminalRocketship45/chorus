@@ -138,9 +138,9 @@ def test_substitutions_are_read_only(somali):
     assert load_ruleset("somali").substitutions["P"] == ("B",)
 
 
-def test_path_traversal_and_empty_names_rejected():
+def test_path_traversal_to_real_file_and_empty_names_rejected():
     with pytest.raises(KeyError):
-        load_ruleset("../engine")
+        load_ruleset("../data/mandarin")
     with pytest.raises(KeyError):
         load_ruleset("")
 
