@@ -12,12 +12,14 @@ import json
 import os
 import tarfile
 import urllib.request
+import zlib
 from dataclasses import dataclass
 from pathlib import Path
 
 CORPUS_URL = "https://www.openslr.org/resources/101/speechocean762.tar.gz"
 DEFAULT_DEST = Path(__file__).parent / "data" / "speechocean762"
 RUN_COMMAND = "python -m eval.fetch_speechocean"
+EXTRACTED_MARKER = ".extracted"
 _PROGRESS_STEP = 50 * 1024 * 1024
 
 
@@ -64,7 +66,7 @@ def _fetch_archive(archive: Path) -> None:
     print(f"Downloading {CORPUS_URL} ...", flush=True)
     downloaded = 0
     next_report = _PROGRESS_STEP
-    with urllib.request.urlopen(CORPUS_URL) as resp, open(part, "wb") as out:
+    with urllib.request.urlopen(CORPUS_URL, timeout=60) as resp, open(part, "wb") as out:
         while True:
             chunk = resp.read(1024 * 1024)
             if not chunk:
@@ -78,14 +80,21 @@ def _fetch_archive(archive: Path) -> None:
 
 
 def download(dest: Path = DEFAULT_DEST) -> Path:
-    """Download and extract the corpus. Idempotent."""
+    """Download and extract the corpus. Idempotent.
+
+    Extraction is complete only when the ``.extracted`` marker exists; the
+    marker is written after ``extractall`` returns, so an interrupted
+    extraction is redone from the archive on the next run.
+    """
     dest.mkdir(parents=True, exist_ok=True)
     archive = dest / "speechocean762.tar.gz"
-    try:
-        find_scores_json(dest)
-        return dest
-    except FileNotFoundError:
-        pass
+    marker = dest / EXTRACTED_MARKER
+    if marker.exists():
+        try:
+            find_scores_json(dest)
+            return dest
+        except FileNotFoundError:
+            pass
     if not archive.exists():
         _fetch_archive(archive)
     if not tarfile.is_tarfile(archive):
@@ -94,9 +103,20 @@ def download(dest: Path = DEFAULT_DEST) -> Path:
             f"{archive} was not a valid tar archive and has been deleted. "
             f"Re-run: {RUN_COMMAND}"
         )
+    marker.unlink(missing_ok=True)
     print("Extracting ...", flush=True)
-    with tarfile.open(archive) as tf:
-        tf.extractall(dest, filter="data")
+    try:
+        with tarfile.open(archive) as tf:
+            tf.extractall(dest, filter="data")
+    except (tarfile.TarError, EOFError, OSError, zlib.error) as exc:
+        archive.unlink(missing_ok=True)
+        marker.unlink(missing_ok=True)
+        raise RuntimeError(
+            f"Extracting {archive} failed ({type(exc).__name__}: {exc}); the "
+            f"archive was deleted. Re-running `{RUN_COMMAND}` will "
+            f"re-download it."
+        ) from exc
+    marker.write_text("ok\n", encoding="utf-8")
     return dest
 
 
@@ -117,7 +137,12 @@ def build_audio_index(dest: Path = DEFAULT_DEST) -> dict[str, Path]:
         for name in files:
             stem, ext = os.path.splitext(name)
             if ext.lower() == ".wav":
-                index[stem.lower()] = Path(root) / name
+                key, path = stem.lower(), Path(root) / name
+                if key in index:
+                    raise ValueError(
+                        f"duplicate audio id {key!r}: {index[key]} and {path}"
+                    )
+                index[key] = path
     return index
 
 
