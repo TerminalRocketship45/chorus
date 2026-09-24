@@ -1,0 +1,22 @@
+{
+  "language": "mandarin",
+  "status": "validated",
+  "notes": "Validated against speechocean762, whose 250 non-native speakers are all Mandarin L1. Mandarin disallows most final consonants and lacks the English dental fricatives.",
+  "substitutions": {
+    "TH": ["S", "T", "F"],
+    "DH": ["D", "Z"],
+    "V": ["W", "F"],
+    "Z": ["S"],
+    "ZH": ["SH"],
+    "R": ["L", "W"],
+    "N": ["NG"],
+    "NG": ["N"]
+  },
+  "cluster_reduction": true,
+  "final_consonant_deletion": true,
+  "epenthesis": true,
+  "sources": [
+    "Swan & Smith, Learner English: A Teacher's Guide to Interference and Other Problems, Cambridge — Chinese chapter",
+    "speechocean762 (arXiv 2104.01378): 5000 utterances, 250 non-native Mandarin L1 speakers, half children, expert phoneme-level accuracy labels"
+  ]
+}

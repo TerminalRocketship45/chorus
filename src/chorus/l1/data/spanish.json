@@ -1,0 +1,23 @@
+{
+  "language": "spanish",
+  "status": "shipped",
+  "notes": "Spanish lacks the English dental fricatives and several vowel contrasts, and disallows word-initial /s/+consonant clusters without a preceding vowel.",
+  "substitutions": {
+    "TH": ["T", "S"],
+    "DH": ["D"],
+    "V": ["B"],
+    "Z": ["S"],
+    "ZH": ["Y", "SH"],
+    "JH": ["Y", "CH"],
+    "IH": ["IY"],
+    "AE": ["EH", "AA"],
+    "UH": ["UW"]
+  },
+  "cluster_reduction": false,
+  "final_consonant_deletion": false,
+  "epenthesis": true,
+  "sources": [
+    "Swan & Smith, Learner English: A Teacher's Guide to Interference and Other Problems, Cambridge — Spanish chapter",
+    "Problematic Phonemes for Spanish-speaking Learners of English (ERIC EJ1237446)"
+  ]
+}

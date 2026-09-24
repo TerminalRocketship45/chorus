@@ -1,0 +1,24 @@
+{
+  "language": "somali",
+  "status": "shipped",
+  "notes": "Somali lacks several English phonemes and disallows word-initial consonant clusters. Syllable structure is CV, CVC, V, rarely more than two consonants together.",
+  "substitutions": {
+    "P": ["B"],
+    "V": ["F", "B"],
+    "ZH": ["SH", "J"],
+    "CH": ["SH"],
+    "JH": ["J", "Y"],
+    "NG": ["N"],
+    "TH": ["T", "S"],
+    "DH": ["D", "Z"],
+    "R": ["L"]
+  },
+  "cluster_reduction": true,
+  "final_consonant_deletion": false,
+  "epenthesis": true,
+  "sources": [
+    "Somali phonology: inventory lacks /p/ /v/ /ʒ/ /tʃ/ /dʒ/ /ŋ/ /θ/ /ð/ /ɹ/",
+    "Koffi (2011), Pronunciation of S-Clusters in Somali-Accented English, St. Cloud State University",
+    "Somali syllable structure CV, CVC, V; word-initial clusters resolved by epenthesis ('stop' -> [sitop]/[istop])"
+  ]
+}
