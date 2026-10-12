@@ -35,8 +35,35 @@ def _get_bundle():
     return torchaudio.pipelines.MMS_FA
 
 
-def _load_audio(path: Path):
-    """Load audio as mono 16 kHz float32, resampling if needed."""
+@lru_cache(maxsize=1)
+def _get_device() -> str:
+    """Pick "cuda" when available, else "cpu" (the default on a CPU-only machine)."""
+    import torch
+
+    return "cuda" if torch.cuda.is_available() else "cpu"
+
+
+@lru_cache(maxsize=1)
+def _get_model_bundle():
+    """Build and cache the model, tokenizer and aligner (the ~2 s rebuild cost).
+
+    This is the actual fix for the "rebuilds on every call" cost: `_get_bundle`
+    above only memoises the (cheap) bundle *descriptor* lookup, not the
+    (expensive) `bundle.get_model()` call that constructs and loads weights.
+    Cached once per process, keyed on nothing (there is only one bundle), so
+    a changed device after the first call has no effect until the process
+    restarts — the same lifetime contract as asr._get_model.
+    """
+    bundle = _get_bundle()
+    device = _get_device()
+    model = bundle.get_model().to(device)
+    tokenizer = bundle.get_tokenizer()
+    aligner = bundle.get_aligner()
+    return model, tokenizer, aligner, device
+
+
+def _load_audio(path: Path, device: str = "cpu"):
+    """Load audio as mono 16 kHz float32 on `device`, resampling if needed."""
     import torch
     import torchaudio
 
@@ -45,7 +72,7 @@ def _load_audio(path: Path):
         waveform = waveform.mean(dim=0, keepdim=True)
     if sr != TARGET_SR:
         waveform = torchaudio.functional.resample(waveform, sr, TARGET_SR)
-    return waveform.to(torch.float32)
+    return waveform.to(torch.float32).to(device)
 
 
 def align_words(audio_path: str | Path, expected_text: str) -> list[WordTiming]:
@@ -72,12 +99,9 @@ def align_words(audio_path: str | Path, expected_text: str) -> list[WordTiming]:
 
     import torch
 
-    bundle = _get_bundle()
-    model = bundle.get_model()
-    tokenizer = bundle.get_tokenizer()
-    aligner = bundle.get_aligner()
+    model, tokenizer, aligner, device = _get_model_bundle()
 
-    waveform = _load_audio(path)
+    waveform = _load_audio(path, device)
     with torch.inference_mode():
         emission, _ = model(waveform)
         token_spans = aligner(emission[0], tokenizer(words))

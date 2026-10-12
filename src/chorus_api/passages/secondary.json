@@ -1,0 +1,50 @@
+[
+  {
+    "id": "se-01",
+    "title": "The Corner Bakery",
+    "band": "secondary",
+    "level": 1,
+    "topic": "first job",
+    "text": "When Maria turned sixteen, she took a job at the corner bakery near her school. At first the early mornings felt impossible, and she often arrived still half asleep. Within a few weeks, though, she learned to shape dough quickly and greet regular customers by name. The owner noticed her steady effort and began teaching her how to manage the register and close the shop at night. Maria realized that showing up consistently, even on tired mornings, had earned her a trust that no single excellent day could have built alone."
+  },
+  {
+    "id": "se-02",
+    "title": "A Quiet Lunch Period",
+    "band": "secondary",
+    "level": 1,
+    "topic": "learning a skill",
+    "text": "Ever since the school library installed a bank of laptops, Devon has spent most lunch periods there instead of the cafeteria. He is building a simple website for his grandfather's woodworking business, and every week he learns a new trick from online tutorials and from the patient librarian who manages the computer lab. Some classmates tease him for skipping lunch with friends, but Devon has started to notice something they have not: the pages he builds are getting cleaner, faster, and easier to navigate. He has decided that a quiet lunch period is a fair trade for a skill he might use for the rest of his life."
+  },
+  {
+    "id": "se-03",
+    "title": "The Hill",
+    "band": "secondary",
+    "level": 2,
+    "topic": "cross country",
+    "text": "During the first week of cross country practice, Priya finished dead last in nearly every drill the coach assigned. Her legs burned long before the other runners even seemed to notice the hill they were climbing. Instead of quitting, she asked an older teammate to run with her twice a week before school, when the course was quiet and nobody was watching her struggle. Slowly, almost without noticing, she began finishing closer to the middle of the pack, then near the front. By the regional meet in autumn, the same hill that once defeated her barely raised her heart rate, and she understood that endurance is built in private, long before anyone sees the result in public."
+  },
+  {
+    "id": "se-04",
+    "title": "The Skate Park Debate",
+    "band": "secondary",
+    "level": 2,
+    "topic": "community debate",
+    "text": "At the city council meeting, teenagers filled the back rows holding handmade signs supporting a new skate park near the river. Several adults argued that the space should instead become a quiet garden, worried about noise and safety. Marcus, a junior who had skated on cracked parking lots for years, stood up and explained how a proper park with smooth ramps would actually reduce the exact dangers the adults feared. He described watching a friend break an arm on a pothole that a real park would never have. The council did not reach a decision that night, but for the first time, several members admitted the teenagers had raised points worth real consideration."
+  },
+  {
+    "id": "se-05",
+    "title": "Four Degrees Off",
+    "band": "secondary",
+    "level": 3,
+    "topic": "astronomy club",
+    "text": "The astronomy club had spent an entire semester calculating the expected position of a faint comet, checking their arithmetic twice and sometimes three times before the telescope was even uncovered. On the night it was finally visible, the comet appeared nearly four degrees from where their calculations had placed it, a gap too large to blame on the cold or on tired eyes. Rather than treating the mismatch as a failure, their advisor asked the students to find the error themselves, pointing out that locating a mistake teaches more about the universe than a clean, lucky result ever could. By dawn they had traced the problem to a single mistyped coordinate, and several students admitted they finally understood why scientists publish their methods and not only their conclusions."
+  },
+  {
+    "id": "se-06",
+    "title": "The Notebook",
+    "band": "secondary",
+    "level": 3,
+    "topic": "family translation",
+    "text": "Since her family arrived from Vietnam six years ago, Linh has translated almost everything official for her parents, from utility bills to parent teacher conferences to the forms at the dentist's office. By middle school this felt like an ordinary chore, something every bilingual kid seemed to share, but by her junior year the documents had grown heavier, lease agreements, insurance claims, a worried letter from a doctor's office that she read twice before finding the courage to explain it to her mother. Linh has started keeping a small notebook of unfamiliar words so she can look them up before the next appointment, not because anyone asked her to, but because she has decided that her family's understanding should never depend on how tired she happens to be that day."
+  }
+]

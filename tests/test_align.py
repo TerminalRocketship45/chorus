@@ -100,3 +100,17 @@ def test_scrambled_transcript_scores_lower(cat_wav):
 def test_apostrophe_word_aligns(cat_wav):
     out = align_words(cat_wav, "the cat's")
     assert [t.word for t in out] == ["the", "cat's"]
+
+
+@pytest.mark.slow
+def test_model_bundle_is_cached_across_calls(cat_wav):
+    """The ~2s rebuild cost (bundle.get_model()) must be paid once per
+    process, not once per align_words call."""
+    from chorus.align import _get_model_bundle
+
+    _get_model_bundle.cache_clear()
+    first = _get_model_bundle()
+    align_words(cat_wav, TEXT)
+    second = _get_model_bundle()
+    assert first is second
+    assert _get_model_bundle.cache_info().hits >= 1

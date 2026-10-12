@@ -1,0 +1,50 @@
+[
+  {
+    "id": "el-01",
+    "title": "The First Snow",
+    "band": "elementary",
+    "level": 1,
+    "topic": "snow",
+    "text": "Snow fell all night outside Mia's window. In the morning the yard looked white and soft. Mia pulled on her boots and her warm red mittens. She ran outside and made a big snowball. Her little brother built a short snowman by the porch. They laughed and waved at their neighbor."
+  },
+  {
+    "id": "el-02",
+    "title": "Library Day",
+    "band": "elementary",
+    "level": 1,
+    "topic": "library visit",
+    "text": "Every Saturday Grandma takes Noah to the public library. He likes to find books about dinosaurs and outer space. The librarian waves and says hello to them by name. Noah picks three books and carries them to the checkout desk. He cannot wait to read the biggest one tonight."
+  },
+  {
+    "id": "el-03",
+    "title": "The Winning Goal",
+    "band": "elementary",
+    "level": 2,
+    "topic": "soccer game",
+    "text": "The soccer field behind the school was wet from the morning rain. Jordan tied her cleats tight and jogged out to join her team. During the game she passed the ball to her best friend near the goal. Her friend kicked it hard and the whole team cheered loudly. After the final whistle everyone shared orange slices and talked about the winning goal."
+  },
+  {
+    "id": "el-04",
+    "title": "Sunday Supper",
+    "band": "elementary",
+    "level": 2,
+    "topic": "family meal",
+    "text": "On Sunday evenings the whole family gathers around the kitchen table. Dad stirs a pot of vegetable soup while Grandpa sets out the bowls. Everyone takes turns sharing something good that happened during the week. Little sister always tells the silliest story and makes everyone laugh. After dinner they wash the dishes together and play a quiet board game."
+  },
+  {
+    "id": "el-05",
+    "title": "The Community Garden",
+    "band": "elementary",
+    "level": 3,
+    "topic": "garden",
+    "text": "Behind their apartment building, Ahmed and the neighborhood kids planted a community garden last spring. Each family chose a small square of dirt to tend. Amara waters her tomatoes every morning before the sun gets too hot. Her neighbor grows tall sunflowers that lean toward the fence for light. By late summer the garden is full of ripe vegetables, buzzing bees, and neighbors trading recipes across the fence."
+  },
+  {
+    "id": "el-06",
+    "title": "A Week at the Lake",
+    "band": "elementary",
+    "level": 3,
+    "topic": "lake",
+    "text": "Every July, Mia's family drives north to a quiet lake near the Canadian border for a week of camping. Her dad teaches her how to paddle the canoe without splashing too much water. In the evening they build a small campfire and roast marshmallows until the stars come out. Mia falls asleep listening to loons calling across the still water. On the last morning she watches fish jump near the dock before they pack up the car and head home."
+  }
+]

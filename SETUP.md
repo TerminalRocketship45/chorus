@@ -210,3 +210,35 @@ None of these are working; do not treat them as such.
 - **WCPM.** `analyze` uses the whole recording duration, so leading and trailing silence lowers WCPM.
 - **No voice-activity filter.** faster-whisper's `vad_filter` defaults to `False` and the code does not set it, so hallucinated words on quiet real audio would appear as insertions. This is untested on real recordings. The only spoken fixture is a synthetic Windows text-to-speech voice, which proves the plumbing only, not accuracy on children or accented readers.
 - **Phase 2 does not exist.** No FastAPI service, no React onboarding (grade band, home language), no teacher or parent views, no deployment.
+
+## Running the FastAPI service (`chorus_api`)
+
+Source the environment, then run uvicorn from the repo root:
+
+```
+source /lustre/smuexa01/client/users/rbankapur/chorus_scratch/env.sh
+uvicorn chorus_api.app:app --host 0.0.0.0 --port 8000
+```
+
+Useful env vars (all optional):
+
+| Var | Default | Effect |
+| --- | --- | --- |
+| `CHORUS_DB` | `./chorus.db` | SQLite file path (students, sessions; audio is never stored) |
+| `CHORUS_ASR_MODEL` | `base.en` | faster-whisper model size passed to `chorus.pipeline.analyze` |
+| `CHORUS_WARMUP` | unset | set to `1` to load the Whisper and aligner models on startup, so the first real request isn't the one that pays the load cost |
+
+`GET /api/health`, `/api/languages`, `/api/passages` need no model. `POST
+/api/analyze` loads `base.en` (faster-whisper) and the MMS_FA aligner on its
+first call unless `CHORUS_WARMUP=1` was set; both are cached per process
+afterwards (`chorus.asr._get_model`, `chorus.align._get_model_bundle`).
+
+If `web/dist/` exists (the built React app), `GET /` and any other
+non-`/api` path serve it, with unknown paths falling back to
+`web/dist/index.html` (client-side routing). Until then, only the `/api/*`
+routes exist.
+
+Login node has a 16 GB per-user memory cap: do not start a second
+model-loading process (another `uvicorn` run, a `python -c "from chorus...`
+smoke test, etc.) while this one is loading models, and stop the server
+(`Ctrl-C`, or kill the uvicorn process) once you are done with it.
