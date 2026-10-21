@@ -242,3 +242,28 @@ Login node has a 16 GB per-user memory cap: do not start a second
 model-loading process (another `uvicorn` run, a `python -c "from chorus...`
 smoke test, etc.) while this one is loading models, and stop the server
 (`Ctrl-C`, or kill the uvicorn process) once you are done with it.
+
+## Run the whole app locally
+
+This builds the React frontend and serves it from the same FastAPI process
+that answers `/api/*`, so there is nothing to proxy.
+
+```
+cd web
+export PATH="/lustre/smuexa01/client/users/rbankapur/chorus_scratch/node/node-v22.20.0-linux-x64/bin:$PATH"
+npm run build          # tsc --noEmit, then web/dist
+cd ..
+source /lustre/smuexa01/client/users/rbankapur/chorus_scratch/env.sh
+uvicorn chorus_api.app:app --port 8000
+```
+
+Then open `http://localhost:8000`. `GET /` and any other non-`/api` path
+(e.g. `/read/el-01`, `/teacher`) serve `web/dist/index.html`; `/api/*` still
+answers normally (see "Running the FastAPI service" above).
+
+In VS Code Remote, the Ports panel forwards port 8000 to the browser running
+on the user's own machine, not to anything on the remote host. The
+microphone works there because that forwarded `localhost:8000` is the
+browser's own `localhost`, which browsers treat as a secure origin (same as
+`https://`) even though the traffic is plain HTTP over the tunnel — a
+microphone prompt would otherwise require HTTPS.

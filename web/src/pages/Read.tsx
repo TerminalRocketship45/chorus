@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import type { Passage } from "../types/api";
-import { analyze, ApiRequestError, getPassages } from "../lib/api";
+import { analyze, ApiRequestError, getPassage } from "../lib/api";
 import { useAppState } from "../context/AppContext";
 import { extensionForMimeType, pickRecorderMimeType } from "../lib/mimeType";
 import { formatElapsed } from "../lib/format";
@@ -32,21 +32,16 @@ export function Read() {
   const timerRef = useRef<number | null>(null);
   const startedAtRef = useRef<number>(0);
 
-  // Resolve the passage if we weren't handed it via navigation (deep link / refresh).
-  // docs/api.md has no GET /api/passages/{id}, so fall back to the full list.
+  // Resolve the passage if we weren't handed it via navigation (deep link / refresh),
+  // via GET /api/passages/{id} (docs/api.md), which 404s for an unknown id.
   useEffect(() => {
     if (passage || !passageId) return;
     let cancelled = false;
-    getPassages(app.gradeBand ?? undefined)
-      .then((list) => {
+    getPassage(passageId)
+      .then((found) => {
         if (cancelled) return;
-        const found = list.find((p) => p.id === passageId);
-        if (found) {
-          setPassage(found);
-          setState("idle");
-        } else {
-          setState("error");
-        }
+        setPassage(found);
+        setState("idle");
       })
       .catch(() => {
         if (!cancelled) setState("error");
@@ -54,7 +49,7 @@ export function Read() {
     return () => {
       cancelled = true;
     };
-  }, [passage, passageId, app.gradeBand]);
+  }, [passage, passageId]);
 
   useEffect(() => {
     return () => {

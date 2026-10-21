@@ -41,6 +41,11 @@ export function getPassages(band?: GradeBand): Promise<Passage[]> {
   return request<Passage[]>(`/passages${qs}`);
 }
 
+/** Throws ApiRequestError with status 404 if `id` is unknown (docs/api.md). */
+export function getPassage(id: string): Promise<Passage> {
+  return request<Passage>(`/passages/${encodeURIComponent(id)}`);
+}
+
 export function createStudent(body: {
   name: string;
   grade_band: GradeBand;

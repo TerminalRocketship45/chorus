@@ -65,6 +65,17 @@ export async function handleMockRequest(
     return true;
   }
 
+  if (method === "GET" && /^\/api\/passages\/[^/]+$/.test(path)) {
+    const id = decodeURIComponent(path.slice("/api/passages/".length));
+    const found = MOCK_PASSAGES.find((p) => p.id === id);
+    if (!found) {
+      sendJson(res, 404, { detail: `unknown passage_id: '${id}'` });
+      return true;
+    }
+    sendJson(res, 200, found);
+    return true;
+  }
+
   if (method === "GET" && path === "/api/students") {
     sendJson(res, 200, MOCK_STUDENTS);
     return true;
@@ -110,6 +121,7 @@ export async function handleMockRequest(
     const text = raw.toString("latin1");
     const passageId = extractMultipartField(text, "passage_id");
     const homeLanguage = extractMultipartField(text, "home_language");
+    const studentId = extractMultipartField(text, "student_id");
 
     // Simulate the error responses the real service can give, for manual
     // testing: pass a passage_id of "mock-413" / "mock-422" / "mock-503".
@@ -128,7 +140,14 @@ export async function handleMockRequest(
 
     await new Promise((resolve) => setTimeout(resolve, 400));
     const fixture = homeLanguage === "english" ? MOCK_ANALYZE_NO_ACCENT : MOCK_ANALYZE_WITH_ACCENT;
-    sendJson(res, 200, fixture);
+    // docs/api.md: home_language echoes the code the client sent, and is null
+    // only when none was given at all; session_id is null unless a
+    // student_id was given (nothing is saved without one).
+    sendJson(res, 200, {
+      ...fixture,
+      home_language: homeLanguage ?? null,
+      session_id: studentId ? fixture.session_id : null,
+    });
     return true;
   }
 
