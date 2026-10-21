@@ -7,7 +7,6 @@ web/dist
 **/__pycache__
 *.pyc
 *.db
-CLAUDE.md
 tests
 docs
 deploy
