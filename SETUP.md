@@ -217,7 +217,7 @@ Source the environment, then run uvicorn from the repo root:
 
 ```
 source /lustre/smuexa01/client/users/rbankapur/chorus_scratch/env.sh
-uvicorn chorus_api.app:app --host 0.0.0.0 --port 8000
+python -m uvicorn chorus_api.app:app --host 0.0.0.0 --port 8000
 ```
 
 Useful env vars (all optional):
@@ -254,7 +254,7 @@ export PATH="/lustre/smuexa01/client/users/rbankapur/chorus_scratch/node/node-v2
 npm run build          # tsc --noEmit, then web/dist
 cd ..
 source /lustre/smuexa01/client/users/rbankapur/chorus_scratch/env.sh
-uvicorn chorus_api.app:app --port 8000
+python -m uvicorn chorus_api.app:app --port 8000
 ```
 
 Then open `http://localhost:8000`. `GET /` and any other non-`/api` path
