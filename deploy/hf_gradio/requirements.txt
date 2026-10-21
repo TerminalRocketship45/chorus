@@ -1,0 +1,17 @@
+# Hugging Face Space (Gradio SDK, ZeroGPU). Gradio itself is NOT pinned here:
+# the SDK installs the version named by sdk_version in README.md.
+# ZeroGPU supports torch >= 2.8.0 only (2.7.1 is not on its list), so torch is
+# 2.8.0 from default PyPI (CUDA build, which the ZeroGPU runtime expects);
+# inference still runs on CPU because CHORUS_ASR_DEVICE=cpu.
+spaces
+torch==2.8.0
+torchaudio==2.8.0
+faster-whisper==1.1.1
+g2p-en==2.1.0
+soundfile==0.12.1
+nltk==3.9.1
+numpy==1.26.4
+fastapi==0.139.2
+uvicorn[standard]==0.51.0
+python-multipart==0.0.32
+av==18.0.0
