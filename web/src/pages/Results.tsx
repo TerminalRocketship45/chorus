@@ -11,6 +11,8 @@ import { Feedback } from "../components/Feedback";
 import { ReplayPlayer } from "../components/ReplayPlayer";
 import { useReplay } from "../hooks/useReplay";
 import { hasTiming } from "../lib/replay";
+import { Confetti } from "../components/Confetti";
+import { claimFirstView, confettiAllowed } from "../lib/confetti";
 
 interface LocationState {
   analysis: AnalyzeResponse;
@@ -59,6 +61,14 @@ export function Results() {
 
   const [selected, setSelected] = useState<WordResult | null>(null);
   const [heardOpen, setHeardOpen] = useState(false);
+  const [confetti, setConfetti] = useState(false);
+
+  // Only when a fresh reading's results first appear, never on revisiting this history entry.
+  const hasState = state !== null;
+  useEffect(() => {
+    if (!hasState || !confettiAllowed(prefersReducedMotion())) return;
+    if (claimFirstView(location.key)) setConfetti(true);
+  }, [hasState, location.key]);
 
   const blob = state?.audioBlob ?? null;
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -211,6 +221,7 @@ export function Results() {
       )}
 
       <Legend showUnreached={hasUnreached(words)} />
+      {confetti && <Confetti onDone={() => setConfetti(false)} />}
     </Screen>
   );
 }

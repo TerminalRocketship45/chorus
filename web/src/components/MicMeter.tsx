@@ -82,7 +82,7 @@ export function MicMeter({ stream, active }: { stream: MediaStream | null; activ
         ))}
       </div>
       <p className="meter__hint" role="status">
-        {quiet ? "We can't hear you yet — check the microphone." : ""}
+        {quiet ? "We can't hear you yet. Check the microphone." : ""}
       </p>
     </div>
   );

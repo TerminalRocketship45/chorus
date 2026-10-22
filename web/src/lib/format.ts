@@ -28,16 +28,16 @@ export function formatPassageMeta(topic: string, level: number, wordCount: numbe
 }
 
 export function formatDate(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "Not yet";
   try {
     return new Date(iso).toLocaleDateString();
   } catch {
-    return "—";
+    return "Not yet";
   }
 }
 
 export function gradeBandLabel(band: "elementary" | "secondary"): string {
-  return band === "elementary" ? "Grades 2–5" : "Grades 6–12";
+  return band === "elementary" ? "Grades 2 to 5" : "Grades 6 to 12";
 }
 
 /** Home-language codes are lowercase API codes ("somali"); show them as words. */

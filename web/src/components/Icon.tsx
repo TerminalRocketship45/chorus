@@ -18,6 +18,7 @@ export type IconName =
   | "pause"
   | "info"
   | "warning"
+  | "gear"
   | "chorusMark";
 
 const PATHS: Record<IconName, ReactNode> = {
@@ -69,6 +70,12 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <path d="M12 4l9 16H3z" />
       <path d="M12 10v4.5M12 17.4v.1" />
+    </>
+  ),
+  gear: (
+    <>
+      <path d="M10.84 4.69 L11.04 2.65 L12.96 2.65 L13.16 4.69 L16.35 6.01 L17.93 4.71 L19.29 6.07 L17.99 7.65 L19.31 10.84 L21.35 11.04 L21.35 12.96 L19.31 13.16 L17.99 16.35 L19.29 17.93 L17.93 19.29 L16.35 17.99 L13.16 19.31 L12.96 21.35 L11.04 21.35 L10.84 19.31 L7.65 17.99 L6.07 19.29 L4.71 17.93 L6.01 16.35 L4.69 13.16 L2.65 12.96 L2.65 11.04 L4.69 10.84 L6.01 7.65 L4.71 6.07 L6.07 4.71 L7.65 6.01z" />
+      <circle cx="12" cy="12" r="2.8" />
     </>
   ),
   chorusMark: <path d="M5 10v4M9 6v12M13 3.5v17M17 7v10M21 10.5v3" />,

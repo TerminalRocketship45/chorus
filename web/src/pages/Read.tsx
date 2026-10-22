@@ -171,7 +171,7 @@ export function Read() {
 
   if (state === "loading-passage") {
     return (
-      <Screen title="Passage" back={back}>
+      <Screen title="Passage" back={back} settings={false}>
         <p className="footnote" role="status">
           Loading passage…
         </p>
@@ -181,7 +181,7 @@ export function Read() {
 
   if (!passage) {
     return (
-      <Screen title="Passage" back={back}>
+      <Screen title="Passage" back={back} settings={false}>
         <div className="notice notice--error" role="alert">
           <Icon name="warning" size={20} />
           <span>Chorus couldn't find that passage.</span>
@@ -232,7 +232,7 @@ export function Read() {
   ) : undefined;
 
   return (
-    <Screen title={passage.title} back={back} bottom={bottom}>
+    <Screen title={passage.title} back={back} bottom={bottom} settings={false}>
       <div className="title-block">
         <h1 className="large-title large-title--medium">{passage.title}</h1>
         <p className="meta-line">{formatPassageMeta(passage.topic, passage.level, passage.word_count)}</p>

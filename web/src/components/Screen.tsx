@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Icon } from "./Icon";
+import { SettingsButton } from "./SettingsButton";
 
 interface BackProps {
   /** Short name of the screen you return to, shown beside the chevron. */
@@ -15,6 +16,8 @@ interface ScreenProps {
   large?: boolean;
   back?: BackProps;
   trailing?: ReactNode;
+  /** Show the settings gear in the bar (default). Off on Settings itself and mid-recording. */
+  settings?: boolean;
   /** Sticky bottom bar (primary action). */
   bottom?: ReactNode;
   children: ReactNode;
@@ -24,7 +27,7 @@ interface ScreenProps {
  * iOS-style screen: navigation bar with a back chevron, optional large title
  * that collapses into the bar as you scroll, and an optional bottom action bar.
  */
-export function Screen({ title, large = false, back, trailing, bottom, children }: ScreenProps) {
+export function Screen({ title, large = false, back, trailing, settings = true, bottom, children }: ScreenProps) {
   const sentinelRef = useRef<HTMLHeadingElement | null>(null);
   const [titleInBar, setTitleInBar] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -98,7 +101,10 @@ export function Screen({ title, large = false, back, trailing, bottom, children 
           <div className="navbar__title" data-visible={large ? titleInBar : pastTitle} aria-hidden={large ? true : undefined}>
             {title}
           </div>
-          <div className="navbar__trail">{trailing}</div>
+          <div className="navbar__trail">
+            {trailing}
+            {settings && <SettingsButton />}
+          </div>
         </div>
       </header>
       <main className={`screen${bottom ? " screen--with-bar" : ""}`}>

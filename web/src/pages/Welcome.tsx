@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
 import { APP_NAME, APP_TAGLINE } from "../content/app";
 import { Icon } from "../components/Icon";
+import { SettingsButton } from "../components/SettingsButton";
 
 export function Welcome() {
   return (
     <main className="welcome">
+      <SettingsButton className="welcome__gear" />
       <div className="welcome__hero">
         <div className="welcome__mark" aria-hidden="true">
           <Icon name="chorusMark" size={46} strokeWidth={2.4} />
@@ -19,12 +21,7 @@ export function Welcome() {
         <Link to="/teacher" className="btn btn--plain btn--block">
           Teacher / parent view
         </Link>
-        <Link to="/how-it-works" className="btn btn--plain btn--block">
-          How {APP_NAME} works
-        </Link>
-        <p className="welcome__fine">
-          {APP_NAME} is not a diagnostic or clinical tool. Recordings are never stored on the server.
-        </p>
+        <p className="welcome__fine">Recordings are never stored on the server.</p>
       </div>
     </main>
   );

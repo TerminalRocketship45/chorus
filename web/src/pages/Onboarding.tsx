@@ -140,7 +140,7 @@ export function Onboarding() {
   }
 
   return (
-    <Screen title="Get started" back={back} bottom={bottom}>
+    <Screen title="Get started" back={back} bottom={bottom} settings={false}>
       {progress}
 
       {step === "grade" && (
@@ -153,8 +153,8 @@ export function Onboarding() {
           <div className="group" role="radiogroup" aria-labelledby="grade-heading">
             {(
               [
-                ["elementary", "Grades 2–5", "Elementary passages"],
-                ["secondary", "Grades 6–12", "Secondary passages"],
+                ["elementary", "Grades 2 to 5", "Elementary passages"],
+                ["secondary", "Grades 6 to 12", "Secondary passages"],
               ] as const
             ).map(([band, title, sub]) => (
               <button

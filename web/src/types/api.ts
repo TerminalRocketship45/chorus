@@ -27,7 +27,11 @@ export interface Passage {
   /** Set on generated passages (docs/api.md, typed topics). */
   requested_topic?: string | null;
   topic_accepted?: boolean;
+  /** Why a generate call returned a library passage; null/absent when the AI wrote it. */
+  fallback_reason?: FallbackReason | null;
 }
+
+export type FallbackReason = "no_token" | "topic_rejected" | "model_declined" | "model_unavailable" | "invalid_output";
 
 export type PassageSource = "library" | "ai";
 

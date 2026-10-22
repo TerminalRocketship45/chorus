@@ -19,6 +19,7 @@ import type { GradeBand, Passage, PassageProgress, Student } from "../types/api"
 
 let nextStudentId = 1000;
 let nextGeneratedId = 1;
+let generateCalls = 0;
 
 /** Passages written so far (any student or none), so GET /api/passages/g-N works. */
 const generated = new Map<string, Passage>();
@@ -145,10 +146,17 @@ export async function handleMockRequest(
 
     // Unsafe or unusable topics never error: the reader gets a library passage.
     const accepted = !BLOCKED_TOPICS.test(topic);
-    if (!accepted) {
+    // Alternate: a written passage, then a no_token fallback (the server's reason codes: docs/api.md).
+    const forcedFallback = accepted && generateCalls++ % 2 === 1;
+    if (!accepted || forcedFallback) {
       const candidates = MOCK_PASSAGES.filter((p) => p.band === body.band && !exclude.has(p.id));
       const pick = candidates[0] ?? MOCK_PASSAGES.find((p) => p.band === body.band)!;
-      passage = { ...pick, requested_topic: topic, topic_accepted: false };
+      passage = {
+        ...pick,
+        requested_topic: topic,
+        topic_accepted: accepted,
+        fallback_reason: accepted ? "no_token" : "topic_rejected",
+      };
     } else {
       const label = topic || "animals";
       const id = `g-${nextGeneratedId++}`;
@@ -164,6 +172,7 @@ export async function handleMockRequest(
         source: "ai",
         requested_topic: topic || null,
         topic_accepted: true,
+        fallback_reason: null,
       };
       generated.set(id, passage);
     }

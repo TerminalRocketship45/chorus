@@ -43,8 +43,8 @@ export const MEASURED_RESULT_CONFIG =
 
 export const MEASURED_RESULT_HEADLINE =
   "The speech recognizer wrongly flagged 2,301 of 14,644 expert-correct words (15.7%). " +
-  "The accent filter withdrew 65 of those false flags (2.8%, 95% CI 2.1%–3.6%) " +
-  "while keeping 954 of 965 flagged genuine errors (98.9%, 95% CI 98.1%–99.5%).";
+  "The accent filter withdrew 65 of those false flags (2.8%, 95% CI 2.1% to 3.6%) " +
+  "while keeping 954 of 965 flagged genuine errors (98.9%, 95% CI 98.1% to 99.5%).";
 
 export const MEASURED_RESULT_WHY_SMALL =
   "The effect is small because the speech recognizer, not the accent rules, " +
@@ -62,9 +62,6 @@ export const LANGUAGE_RULE_STATUS = {
     "Somali and Spanish accent rules come from published linguistics research, " +
     "not from a measurement against recordings of real speakers.",
   notYet: "Hmong and Karen accent rules are not encoded yet.",
-  notDiagnostic:
-    "Chorus is not a diagnostic or clinical tool. It does not assess speech " +
-    "disorders and is not a substitute for a teacher's own judgment.",
 } as const;
 
 export const CREDITS = [
@@ -109,7 +106,7 @@ export const PIPELINE_STEPS = [
     text:
       "For a few languages, Chorus checks whether a changed word matches a " +
       "documented pattern of that language's accent in English. If it does, " +
-      "the word is still shown as correct — only a teacher can see it was " +
+      "the word is still shown as correct. Only a teacher can see it was " +
       "an accent match, never a student.",
   },
   {

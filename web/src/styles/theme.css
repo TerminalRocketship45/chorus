@@ -48,6 +48,10 @@
   --chart-2: #6b6b73;
   --chart-grid: #e1e1e6;
 
+  /* Confetti: two muted tones beside the accent */
+  --confetti-2: #8f9bb3;
+  --confetti-3: #c7a76d;
+
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, "Segoe UI",
     Roboto, "Helvetica Neue", Arial, sans-serif;
 
@@ -100,6 +104,8 @@
     --chart-1: #5aa9ff;
     --chart-2: #a0a0a8;
     --chart-grid: #2c2c2e;
+    --confetti-2: #6d7a94;
+    --confetti-3: #b39a64;
   }
 }
 
@@ -134,4 +140,11 @@
   --chart-1: #5aa9ff;
   --chart-2: #a0a0a8;
   --chart-grid: #2c2c2e;
+  --confetti-2: #6d7a94;
+  --confetti-3: #b39a64;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
 }

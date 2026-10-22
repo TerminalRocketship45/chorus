@@ -26,11 +26,6 @@ export function TeacherView() {
 
   return (
     <Screen title="Students" large back={{ label: "Home", to: "/" }}>
-      <div className="notice notice--info" style={{ marginTop: -12 }}>
-        <Icon name="info" size={20} />
-        <span>Demo: anyone with the link can see this list. Use first names or nicknames only.</span>
-      </div>
-
       {error && (
         <div className="notice notice--error" role="alert">
           <Icon name="warning" size={20} />
@@ -61,7 +56,7 @@ export function TeacherView() {
                   </span>
                 </span>
                 <span className="row__value">
-                  <strong className="num">{student.last_wcpm ?? "—"}</strong>
+                  <strong className="num">{student.last_wcpm ?? "None"}</strong>
                   <span>Last WCPM</span>
                 </span>
                 <span className="row__chev">

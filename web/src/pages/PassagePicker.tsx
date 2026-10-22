@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import type { Passage, PassageProgress } from "../types/api";
 import { generatePassage, getPassages, getStudentPassages } from "../lib/api";
 import { useAppState } from "../context/AppContext";
@@ -50,6 +50,15 @@ function PassageRow({
   );
 }
 
+/** One short neutral line when a generate call fell back to the library, else null. */
+export function fallbackNotice(passage: Passage): string | null {
+  const reason = passage.fallback_reason ?? (passage.topic_accepted === false ? "topic_rejected" : null);
+  if (!reason) return null;
+  return reason === "topic_rejected"
+    ? "Let's pick a different topic. Here's one from the library."
+    : "Couldn't write a new passage right now. Here's one from the library.";
+}
+
 export function PassagePicker() {
   const navigate = useNavigate();
   const app = useAppState();
@@ -63,6 +72,7 @@ export function PassagePicker() {
   const [generating, setGenerating] = useState(false);
   const [pendingTopic, setPendingTopic] = useState("");
   const [genError, setGenError] = useState<string | null>(null);
+  const [fallback, setFallback] = useState<string | null>(null);
   const [freshId, setFreshId] = useState<string | null>(null);
   const [announce, setAnnounce] = useState("");
   const alive = useRef(true);
@@ -118,6 +128,7 @@ export function PassagePicker() {
     setPendingTopic(topic);
     setGenerating(true);
     setGenError(null);
+    setFallback(null);
     setAnnounce(topic ? `Writing a passage about ${topic}…` : "Finding a passage for you…");
     try {
       const exclude = [...stored.recent, ...(library ?? []).map((p) => p.id)];
@@ -132,6 +143,7 @@ export function PassagePicker() {
       saveGenerated(next);
       setStored(next);
       setFreshId(passage.id);
+      setFallback(fallbackNotice(passage));
       setAnnounce(`New passage ready: ${passage.title}`);
     } catch {
       if (!alive.current) return;
@@ -198,8 +210,10 @@ export function PassagePicker() {
             </button>
           </form>
         </div>
-        {!generating && generated && generated.topic_accepted === false && (
-          <p className="footnote">Here's a passage from the library instead.</p>
+        {!generating && fallback && (
+          <p className="footnote" role="status">
+            {fallback}
+          </p>
         )}
         {genError && (
           <div className="notice notice--error" role="alert">
@@ -249,14 +263,6 @@ export function PassagePicker() {
           <h2 className="section__title">{app.studentName ? `Reading as ${app.studentName}` : "Reader"}</h2>
         </div>
         <div className="group">
-          <Link to="/how-it-works" className="row">
-            <span className="row__body">
-              <span className="row__title">How Chorus works</span>
-            </span>
-            <span className="row__chev">
-              <Icon name="chevronRight" size={18} strokeWidth={2.4} />
-            </span>
-          </Link>
           <button
             type="button"
             className="row row--danger"

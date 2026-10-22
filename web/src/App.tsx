@@ -9,6 +9,7 @@ import { Results } from "./pages/Results";
 import { TeacherView } from "./pages/TeacherView";
 import { StudentDetail } from "./pages/StudentDetail";
 import { HowItWorks } from "./pages/HowItWorks";
+import { Settings } from "./pages/Settings";
 import { NotFound } from "./pages/NotFound";
 
 export function App() {
@@ -26,6 +27,7 @@ export function App() {
           <Route path="/teacher" element={<TeacherView />} />
           <Route path="/teacher/:studentId" element={<StudentDetail />} />
           <Route path="/how-it-works" element={<HowItWorks />} />
+          <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </div>

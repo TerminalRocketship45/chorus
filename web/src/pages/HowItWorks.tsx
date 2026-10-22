@@ -53,7 +53,6 @@ export function HowItWorks() {
           <li>{LANGUAGE_RULE_STATUS.measured}</li>
           <li>{LANGUAGE_RULE_STATUS.rulesNotMeasured}</li>
           <li>{LANGUAGE_RULE_STATUS.notYet}</li>
-          <li>{LANGUAGE_RULE_STATUS.notDiagnostic}</li>
         </ul>
       </section>
 
@@ -67,7 +66,7 @@ export function HowItWorks() {
               <a href={credit.url} target="_blank" rel="noreferrer">
                 {credit.name}
               </a>
-              {" — "}
+              {": "}
               {credit.detail}
             </li>
           ))}
