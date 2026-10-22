@@ -205,7 +205,8 @@ def _save_cache(path: Path | None, cache: dict[str, str]) -> None:
 
 def cache_path_for(
     model: str, beam_size: int = 1, prompt_passage: bool = False,
-    cache_dir: Path | None = None,
+    cache_dir: Path | None = None, vad_filter: bool = False,
+    drop_hallucinations: bool = False, normalize_peak: bool = False,
 ) -> Path:
     """Transcript cache file for one set of transcript-changing options.
 
@@ -219,7 +220,25 @@ def cache_path_for(
         name += f"_beam{beam_size}"
     if prompt_passage:
         name += "_prompt"
+    if vad_filter:
+        name += "_vad"
+    if drop_hallucinations:
+        name += "_nohall"
+    if normalize_peak:
+        name += "_norm"
     return (cache_dir or CACHE_DIR) / f"{name}.json"
+
+
+def _normalized_copy(wav: Path) -> Path:
+    """Decode to 16 kHz mono, peak-normalise like the app does, return a temp WAV path."""
+    import tempfile
+
+    from chorus_api.audio import decode_to_wav, normalize_wav_peak
+
+    out = Path(tempfile.mkdtemp(prefix="chorus_norm_")) / (Path(wav).stem + ".wav")
+    decode_to_wav(wav, out)
+    normalize_wav_peak(out)
+    return out
 
 
 def build_records(
@@ -232,6 +251,9 @@ def build_records(
     same_sound: bool = False,
     prompt_passage: bool = False,
     digit_context: bool = False,
+    vad_filter: bool = False,
+    drop_hallucinations: bool = False,
+    normalize_peak: bool = False,
     save_every: int = 25,
     return_info: bool = False,
 ):
@@ -271,6 +293,12 @@ def build_records(
                     kw["beam_size"] = beam_size
                 if prompt_passage:
                     kw["initial_prompt"] = u.text
+                if vad_filter:
+                    kw["vad_filter"] = True
+                if drop_hallucinations:
+                    kw["drop_hallucinations"] = True
+                if normalize_peak:
+                    wav = _normalized_copy(wav)
                 cache[key] = asr.transcribe(wav, model_size=model_size, **kw).text
                 fresh += 1
                 if fresh % save_every == 0:
@@ -474,6 +502,12 @@ def main(argv: list[str] | None = None) -> None:
                          "(may hide genuine errors; check retention)")
     ap.add_argument("--digit-context", action="store_true",
                     help="read a Whisper digit run (495) digit-by-digit when the passage does")
+    ap.add_argument("--vad-filter", action="store_true",
+                    help="Silero VAD before decoding (faster-whisper vad_filter)")
+    ap.add_argument("--drop-hallucinations", action="store_true",
+                    help="drop segments with high no_speech_prob and low avg_logprob")
+    ap.add_argument("--normalize-peak", action="store_true",
+                    help="peak-normalise quiet audio to -3 dBFS first, as the app does")
     args = ap.parse_args(argv)
 
     _cmu_words()  # fail before any transcription if the dictionary is missing
@@ -487,12 +521,17 @@ def main(argv: list[str] | None = None) -> None:
           f"missing from scores.json: {len(missing_scores)}; missing audio: {len(missing_audio)}")
     utterances = [scores[i] for i in chosen if i in scores]
 
-    cache_path = cache_path_for(args.model, args.beam_size, args.prompt_passage)
+    cache_path = cache_path_for(
+        args.model, args.beam_size, args.prompt_passage, vad_filter=args.vad_filter,
+        drop_hallucinations=args.drop_hallucinations, normalize_peak=args.normalize_peak,
+    )
     records, info = build_records(
         utterances, audio_index, model_size=args.model,
         cache_path=cache_path, return_info=True,
         beam_size=args.beam_size, same_sound=args.same_sound,
         prompt_passage=args.prompt_passage, digit_context=args.digit_context,
+        vad_filter=args.vad_filter, drop_hallucinations=args.drop_hallucinations,
+        normalize_peak=args.normalize_peak,
     )
     if not records:
         raise RuntimeError(
@@ -505,6 +544,8 @@ def main(argv: list[str] | None = None) -> None:
         model=args.model, seed=args.seed, limit=args.limit, language=args.language,
         beam_size=args.beam_size, same_sound=args.same_sound,
         prompt_passage=args.prompt_passage, digit_context=args.digit_context,
+        vad_filter=args.vad_filter, drop_hallucinations=args.drop_hallucinations,
+        normalize_peak=args.normalize_peak,
         transcript_cache=cache_path.name,
         split="test", sampled_ids=len(chosen),
         skipped_utterances=info["skipped"], skip_reasons=info["skip_reasons"],

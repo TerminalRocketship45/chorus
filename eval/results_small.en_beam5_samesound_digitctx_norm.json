@@ -1,0 +1,346 @@
+{
+  "limitations": "Mandarin-L1 only (all 250 speakers of the speechocean762 corpus); ASR was small.en on CPU; one seeded sample of 2500 utterances from the corpus test split. This is not a general product claim. Most baseline false flags are not accent-shaped (ASR/text mismatch such as in->into), so the ASR sets the ceiling on what an accent filter can withdraw. Number words that Whisper renders as digits are normalised by miscue.normalize for integers 0-999 (larger or mixed tokens such as 2599 or 1st are left unchanged). Of the 2331 baseline false flags, 1840 are substitutions, 201 omissions and 290 insertions; an INSERTION-status false flag is a word read correctly with an extra word nearby, which the accent filter cannot touch. Final-consonant deletion cannot distinguish an accent from a dropped inflection: 17 of 976 genuine errors (expert accuracy < 8.0) were excused, e.g. its->it, world->word, opened->open.",
+  "genuine_errors_excused": 17,
+  "baseline_false_flag_rate_on_expert_correct": {
+    "rate": 0.15917782026768643,
+    "fp": 2331,
+    "expert_correct": 14644
+  },
+  "false_flags_by_status": {
+    "substitution": 1840,
+    "omission": 201,
+    "insertion": 290,
+    "total": 2331
+  },
+  "digit_rendering_false_flags": 0,
+  "false_flags_with_any_digit_in_heard": 14,
+  "words": 15967,
+  "utterances": 2500,
+  "counts_by_status": {
+    "correct": 12616,
+    "substitution": 2723,
+    "insertion": 304,
+    "omission": 280,
+    "self_correction": 37,
+    "repetition": 7
+  },
+  "expert_correct": 14644,
+  "expert_mispronounced": 1323,
+  "heard_verbatim": 12616,
+  "fp_before": 2331,
+  "fp_after": 2268,
+  "tp_before": 976,
+  "tp_after": 959,
+  "fp_reduction": 0.02702702702702703,
+  "retention": 0.9825819672131147,
+  "fp_reduction_ci95": [
+    0.020657487619177455,
+    0.034047025482641644
+  ],
+  "retention_ci95": [
+    0.9741525441942938,
+    0.9901997601615754
+  ],
+  "bootstrap_resamples": {
+    "fp_reduction": 1000,
+    "retention": 1000,
+    "requested": 1000
+  },
+  "baseline_flag_rate": 0.20711467401515626,
+  "filtered_flag_rate": 0.20210434020166593,
+  "excused_words": 80,
+  "excused_heard_is_real_english_word": 80,
+  "excused_real_word_dictionary": "nltk cmudict",
+  "excused_sample": [
+    [
+      "its",
+      "it",
+      10.0
+    ],
+    [
+      "turned",
+      "turn",
+      10.0
+    ],
+    [
+      "world",
+      "word",
+      7.0
+    ],
+    [
+      "war",
+      "wall",
+      10.0
+    ],
+    [
+      "i'm",
+      "i",
+      10.0
+    ],
+    [
+      "asked",
+      "ask",
+      6.0
+    ],
+    [
+      "gives",
+      "give",
+      10.0
+    ],
+    [
+      "nose",
+      "no",
+      10.0
+    ],
+    [
+      "view",
+      "you",
+      10.0
+    ],
+    [
+      "looked",
+      "look",
+      10.0
+    ],
+    [
+      "yam",
+      "yeah",
+      10.0
+    ],
+    [
+      "happened",
+      "happen",
+      5.0
+    ],
+    [
+      "peoples",
+      "people",
+      10.0
+    ],
+    [
+      "faith",
+      "face",
+      10.0
+    ],
+    [
+      "he's",
+      "he",
+      10.0
+    ],
+    [
+      "looked",
+      "look",
+      5.0
+    ],
+    [
+      "steven's",
+      "stephen",
+      10.0
+    ],
+    [
+      "ones",
+      "once",
+      10.0
+    ],
+    [
+      "goal",
+      "go",
+      10.0
+    ],
+    [
+      "it's",
+      "it",
+      10.0
+    ],
+    [
+      "lines",
+      "lies",
+      5.0
+    ],
+    [
+      "goods",
+      "good",
+      10.0
+    ],
+    [
+      "defendants",
+      "defendant",
+      10.0
+    ],
+    [
+      "desks",
+      "desk",
+      10.0
+    ],
+    [
+      "looked",
+      "look",
+      5.0
+    ],
+    [
+      "opened",
+      "open",
+      5.0
+    ],
+    [
+      "sounds",
+      "sound",
+      10.0
+    ],
+    [
+      "thing",
+      "sin",
+      10.0
+    ],
+    [
+      "passed",
+      "pass",
+      10.0
+    ],
+    [
+      "else",
+      "l",
+      3.0
+    ],
+    [
+      "killing's",
+      "killing",
+      10.0
+    ],
+    [
+      "looked",
+      "look",
+      5.0
+    ],
+    [
+      "i'm",
+      "i",
+      10.0
+    ],
+    [
+      "jeep",
+      "g",
+      3.0
+    ],
+    [
+      "blessings",
+      "blessing",
+      5.0
+    ],
+    [
+      "looked",
+      "look",
+      10.0
+    ],
+    [
+      "seen",
+      "see",
+      10.0
+    ],
+    [
+      "moon",
+      "moo",
+      10.0
+    ],
+    [
+      "mike",
+      "my",
+      10.0
+    ],
+    [
+      "things",
+      "since",
+      10.0
+    ]
+  ],
+  "false_positive_cases": [
+    {
+      "expected": "he",
+      "heard": "i",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "faster",
+      "heard": "faster",
+      "expert_accuracy": 10.0,
+      "status": "insertion",
+      "excused": false
+    },
+    {
+      "expected": "they",
+      "heard": "there",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "have",
+      "heard": "hair",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "tim",
+      "heard": "tm",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "trust",
+      "heard": "have",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "were",
+      "heard": "water",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "faulted",
+      "heard": "for",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "good",
+      "heard": "cool",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "yet",
+      "heard": "you",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    }
+  ],
+  "model": "small.en",
+  "seed": 0,
+  "limit": 2500,
+  "language": "mandarin",
+  "beam_size": 5,
+  "same_sound": true,
+  "prompt_passage": false,
+  "digit_context": true,
+  "vad_filter": false,
+  "drop_hallucinations": false,
+  "normalize_peak": true,
+  "transcript_cache": "transcripts_small.en_beam5_norm.json",
+  "split": "test",
+  "sampled_ids": 2500,
+  "skipped_utterances": 0,
+  "skip_reasons": [],
+  "missing_from_scores": 0,
+  "missing_audio": 0
+}

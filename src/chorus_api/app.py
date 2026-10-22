@@ -6,7 +6,11 @@ serves (`uvicorn chorus_api.app:app`).
 from __future__ import annotations
 
 import asyncio
+import difflib
+import json
+import logging
 import os
+import time
 import shutil
 import tempfile
 from contextlib import asynccontextmanager
@@ -26,7 +30,15 @@ from . import generate as generate_mod
 from . import interests as interests_mod
 from . import languages as languages_mod
 from . import passages as passages_mod
-from .audio import AudioTooLong, UndecodableAudio, decode_to_wav
+from . import feedback as feedback_mod
+from .audio import (
+    SILENT_PEAK_DBFS,
+    AudioTooLong,
+    UndecodableAudio,
+    decode_to_wav,
+    normalize_wav_peak,
+    wav_levels,
+)
 from .concurrency import AnalysisBusy, AnalysisGate
 
 #: repo_root/web/dist — the built React app, if it exists (another agent owns web/).
@@ -35,15 +47,26 @@ WEB_DIST = Path(__file__).resolve().parents[2] / "web" / "dist"
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 MAX_DURATION_S = 120.0
 NO_SPEECH_MESSAGE = (
-    "We couldn't hear any reading — check the microphone and try again."
+    "Chorus couldn't hear enough reading. Check the microphone, move closer, and try again."
 )
+TOO_QUIET_MESSAGE = (
+    "Your recording was very quiet. Check the microphone, move closer, and try again."
+)
+#: A reading is rejected as "not heard" when fewer than this share of the passage's
+#: words were heard as correct or close (see `_heard_fraction`). A struggling reader
+#: still matches far more than this; text Whisper invents from silence matches ~none.
+MIN_HEARD_FRACTION = 0.15
+#: A substituted word counts as "close" when its spelling is at least this similar.
+NEAR_RATIO = 0.6
+
+log = logging.getLogger("chorus_api.app")
 
 #: Serialises chorus.pipeline.analyze calls to one at a time, 3-deep wait queue.
 _gate = AnalysisGate(max_queue=3)
 
 
 def _model_size() -> str:
-    return os.environ.get("CHORUS_ASR_MODEL", "base.en")
+    return os.environ.get("CHORUS_ASR_MODEL", "small.en")
 
 
 def _env_flag(name: str, default: bool) -> bool:
@@ -67,7 +90,56 @@ def _analysis_options() -> dict[str, Any]:
         "beam_size": _env_beam_size(),
         "same_sound": _env_flag("CHORUS_SAME_SOUND", True),
         "digit_context": _env_flag("CHORUS_DIGIT_CONTEXT", True),
+        "vad_filter": _env_flag("CHORUS_VAD", VAD_DEFAULT),
+        "drop_hallucinations": _env_flag("CHORUS_DROP_HALLUCINATIONS", True),
     }
+
+
+#: Voice-activity filtering before decoding; see SETUP.md for the measurement.
+VAD_DEFAULT = True
+
+
+def _debug_dir() -> Path | None:
+    """CHORUS_DEBUG_AUDIO_DIR: a debugging aid only. Unset (default) means audio is never stored."""
+    v = os.environ.get("CHORUS_DEBUG_AUDIO_DIR")
+    return Path(v) if v and v.strip() else None
+
+
+def _save_debug(raw_path: str, wav_path: str, meta: dict[str, Any]) -> None:
+    d = _debug_dir()
+    if d is None:
+        return
+    try:
+        d.mkdir(parents=True, exist_ok=True)
+        stamp = time.strftime("%Y%m%d-%H%M%S") + f"-{int(time.time() * 1000) % 1000:03d}"
+        stem = f"{stamp}_{meta.get('passage_id', 'unknown')}"
+        if os.path.exists(raw_path):
+            shutil.copyfile(raw_path, d / f"{stem}.upload")
+        if os.path.exists(wav_path):
+            shutil.copyfile(wav_path, d / f"{stem}.wav")
+        (d / f"{stem}.json").write_text(json.dumps(meta, indent=2, default=str), encoding="utf-8")
+    except Exception as exc:  # never let debugging break a request
+        log.warning("debug audio capture failed: %s", exc)
+
+
+def _heard_fraction(words: list[WordResult]) -> float:
+    """Share of the passage's words heard as correct or close.
+
+    A word counts when what was heard equals what was expected, or is a close
+    spelling of it (difflib ratio >= NEAR_RATIO, e.g. kat/cat). Omissions and
+    unrelated words do not count.
+    """
+    if not words:
+        return 0.0
+    ok = 0
+    for w in words:
+        if w.heard is None:
+            continue
+        if w.heard == w.expected or (
+            difflib.SequenceMatcher(None, w.heard, w.expected).ratio() >= NEAR_RATIO
+        ):
+            ok += 1
+    return ok / len(words)
 
 
 @asynccontextmanager
@@ -217,8 +289,29 @@ def _add_routes(app: FastAPI) -> None:
             raise HTTPException(400, "exclude_ids must be a list of passage ids")
         # Runs in a worker thread, outside the analysis gate: a slow model call
         # must neither block the event loop nor hold up (or wait behind) analysis.
+        topic = body.get("topic")
+        if topic is not None and not isinstance(topic, str):
+            raise HTTPException(400, "topic must be text")
         return await asyncio.to_thread(
-            generate_mod.generate_passage, band, interests, student_id, exclude_ids
+            generate_mod.generate_passage, band, interests, student_id, exclude_ids, topic
+        )
+
+    @app.post(f"{api_prefix}/feedback")
+    async def post_feedback(body: dict[str, Any]) -> dict[str, Any]:
+        words = body.get("words")
+        score = body.get("score")
+        if not isinstance(words, list) or not isinstance(score, dict):
+            raise HTTPException(400, "words (list) and score (object) are required")
+        accent_adjusted = body.get("accent_adjusted")
+        if accent_adjusted is not None and not isinstance(accent_adjusted, dict):
+            raise HTTPException(400, "accent_adjusted must be an object or null")
+        # Worker thread, outside the analysis gate: a slow model call must not queue behind analysis.
+        return await asyncio.to_thread(
+            feedback_mod.make_feedback,
+            words,
+            score,
+            accent_adjusted,
+            body.get("home_language"),
         )
 
     @app.post(f"{api_prefix}/students", status_code=201)
@@ -327,10 +420,16 @@ async def _analyze(
     engine_language = languages_mod.engine_language(resolved_language)
 
     tmp_dir = tempfile.mkdtemp(prefix="chorus_upload_")
+    raw_path = os.path.join(tmp_dir, "upload.bin")
+    wav_path = os.path.join(tmp_dir, "decoded.wav")
+    debug: dict[str, Any] = {
+        "passage_id": passage.id,
+        "passage_text": passage.text,
+        "content_type": audio.content_type,
+        "options": None,
+        "model": _model_size(),
+    }
     try:
-        raw_path = os.path.join(tmp_dir, "upload.bin")
-        wav_path = os.path.join(tmp_dir, "decoded.wav")
-
         total = 0
         with open(raw_path, "wb") as f:
             while True:
@@ -341,14 +440,24 @@ async def _analyze(
                 if total > MAX_UPLOAD_BYTES:
                     raise HTTPException(413, "recording is larger than 10 MB")
                 f.write(chunk)
+        debug["upload_bytes"] = total
 
         try:
-            decode_to_wav(raw_path, wav_path, max_duration_s=MAX_DURATION_S)
+            debug["duration_s"] = decode_to_wav(raw_path, wav_path, max_duration_s=MAX_DURATION_S)
         except AudioTooLong:
             raise HTTPException(413, "recording is longer than 120 seconds")
         except UndecodableAudio:
             raise HTTPException(422, "could not decode the uploaded audio")
 
+        levels = wav_levels(wav_path)
+        debug["levels"] = levels
+        if levels["peak_dbfs"] < SILENT_PEAK_DBFS:
+            debug["rejected"] = "too quiet"
+            raise HTTPException(422, TOO_QUIET_MESSAGE)
+        debug["normalize_gain_db"] = round(normalize_wav_peak(wav_path), 1)
+
+        options = _analysis_options()
+        debug["options"] = options
         try:
             result = await _gate.run(
                 pipeline.analyze,
@@ -356,12 +465,18 @@ async def _analyze(
                 passage.text,
                 engine_language,
                 _model_size(),
-                **_analysis_options(),
+                **options,
             )
         except AnalysisBusy:
             raise HTTPException(503, "the analyzer is busy right now; try again shortly")
 
-        if _no_speech_heard(result.words):
+        debug["transcript"] = result.transcript
+        debug["dropped_segments"] = result.dropped_segments
+        debug["words"] = [_word_to_dict(w) for w in result.words]
+        debug["heard_fraction"] = round(_heard_fraction(result.words), 3)
+
+        if _no_speech_heard(result.words) or debug["heard_fraction"] < MIN_HEARD_FRACTION:
+            debug["rejected"] = "not enough reading heard"
             raise HTTPException(422, NO_SPEECH_MESSAGE)
 
         words_list = [_word_to_dict(w) for w in result.words]
@@ -396,8 +511,10 @@ async def _analyze(
             "score": score_dict,
             "accent_adjusted": accent_adjusted_dict,
             "practice_words": practice_words_list,
+            "transcript": result.transcript,
         }
     finally:
+        _save_debug(raw_path, wav_path, debug)
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
 

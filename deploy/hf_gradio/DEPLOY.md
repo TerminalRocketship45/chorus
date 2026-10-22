@@ -62,6 +62,17 @@ pinned to 0.36.2 because gradio 5.50.0 needs huggingface-hub below 2.0).
 - Generated passages are stored in the same ephemeral SQLite DB (`/tmp/chorus.db`) and
   disappear when the Space restarts.
 
+## AI feedback comment and typed topics (same token)
+
+`POST /api/feedback` (the short, encouraging comment under the results) and the free-text
+`topic` of `POST /api/passages/generate` use the **same secret `HF_TOKEN`** and the same
+model setup as passage generation; no extra secret is needed. `CHORUS_FEEDBACK_MODEL`
+(optional Variable) overrides the model for feedback only; otherwise `CHORUS_PASSAGE_MODEL`
+(or the default) is used. Without the token, or if the model fails or breaks the comment
+rules, feedback is a fixed warm template (`"source": "template"`) and a typed topic gets a
+library passage (`"topic_accepted": false`), so everything keeps working. Feedback is
+requested after the results are shown and runs outside the analysis queue.
+
 ## ZeroGPU notes
 
 - Inference stays on CPU (`CHORUS_ASR_DEVICE=cpu`); no GPU is needed or used.

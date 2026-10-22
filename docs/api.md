@@ -158,3 +158,38 @@ The passages this student generated or read, newest first:
 
 `last_result` is null and `read` false for a passage generated but not yet read. Readers without a
 nickname have no student id; the client keeps their read/score marks locally.
+
+## Typed topics, AI feedback and replay (revision 2026-10-21)
+
+Supersedes the interest chips in the UI (the `/api/interests` route and student `interests` stay
+for compatibility, but the client no longer uses them).
+
+### `POST /api/passages/generate` takes a typed topic
+Body adds `"topic": "machine learning"` (free text the reader typed, trimmed, at most 80
+characters; optional). When present, the passage is about that topic, written as a general,
+readable passage for the grade band (not technical). When absent, it falls back to
+`interests`, then to a general topic. Unsafe or unusable topics (blocklist on the topic, or the
+model declines) never error: the response is a library passage. The response passage adds
+`"topic": "<the typed topic or the interest used>"` and, at the top level of the passage object,
+`"requested_topic": "<what the reader typed>" | null` and `"topic_accepted": true | false`.
+
+### `POST /api/analyze` returns what was heard
+The response adds `"transcript": "<the recognizer's raw text>"` so the client can show what
+Chorus heard next to the passage.
+
+### `POST /api/feedback`
+Body: `{"passage_id": "...", "home_language": "somali" | null, "words": [...the analyze
+response words...], "score": {...}, "accent_adjusted": {...} | null}`.
+Returns `{"feedback": "<2 to 4 short sentences>", "source": "ai" | "template"}`. The comment is
+encouraging, speaks to the reader ("you"), mentions words correct per minute in plain words,
+names at most three practice words (only `misread`/`skipped` words), and never presents an
+accent difference (`accent_ok`) or an `extra_nearby` word as a mistake, never says the reader's
+accent is wrong, and makes no diagnostic claims. When the model is unavailable or its reply
+breaks these rules, a template comment is returned with `"source": "template"`. Can take a few
+seconds; the client requests it after showing the results.
+
+### `POST /api/analyze`: recordings that cannot be scored (422)
+Besides undecodable audio, the endpoint answers 422 with a friendly `detail` when the recording
+peaks below -40 dBFS ("Your recording was very quiet..."), or when fewer than 15% of the passage's
+words were heard as correct or close ("Chorus couldn't hear enough reading. Check the microphone,
+move closer, and try again."). Show `detail` as is; there is no results page for these.

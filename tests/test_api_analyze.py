@@ -17,6 +17,7 @@ from chorus_api.concurrency import AnalysisBusy
 
 OPTIONS_SEEN: list = []
 CAT_WAV = "tests/fixtures/the_cat_sat.wav"
+VAD_EXPECTED = True  # app default for CHORUS_VAD; see SETUP.md
 
 
 @pytest.fixture
@@ -311,12 +312,14 @@ def _post_options(client, monkeypatch):
 
 
 def test_analyze_default_options_are_the_measured_best(client, monkeypatch):
-    for k in ("CHORUS_BEAM_SIZE", "CHORUS_SAME_SOUND", "CHORUS_DIGIT_CONTEXT"):
+    for k in ("CHORUS_BEAM_SIZE", "CHORUS_SAME_SOUND", "CHORUS_DIGIT_CONTEXT", "CHORUS_VAD"):
         monkeypatch.delenv(k, raising=False)
     assert _post_options(client, monkeypatch) == {
         "beam_size": 5,
         "same_sound": True,
         "digit_context": True,
+        "vad_filter": VAD_EXPECTED,
+        "drop_hallucinations": True,
     }
 
 
@@ -328,6 +331,8 @@ def test_analyze_options_can_be_overridden_by_env(client, monkeypatch):
         "beam_size": 1,
         "same_sound": False,
         "digit_context": False,
+        "vad_filter": VAD_EXPECTED,
+        "drop_hallucinations": True,
     }
 
 

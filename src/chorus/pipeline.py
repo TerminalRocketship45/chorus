@@ -78,6 +78,8 @@ def analyze(
     same_sound: bool = False,
     prompt_passage: bool = False,
     digit_context: bool = False,
+    vad_filter: bool = False,
+    drop_hallucinations: bool = False,
 ) -> Analysis:
     """Score one read-aloud.
 
@@ -85,7 +87,9 @@ def analyze(
     `beam_size` (decoding beam), `same_sound` (homophone spellings such as
     two/too count as correct) and `digit_context` (digit runs such as 495 may read digit-by-digit if the
     passage does), and `prompt_passage` (give Whisper the passage
-    as `initial_prompt`; can hide genuine errors, see eval/).
+    as `initial_prompt`; can hide genuine errors, see eval/), `vad_filter` (skip
+    non-speech before decoding) and `drop_hallucinations` (discard segments Whisper
+    flags as silence).
 
     `language` is the reader's home language. When given, the returned
     Analysis carries an accent-adjusted score alongside the raw one, and an
@@ -103,6 +107,10 @@ def analyze(
         asr_opts["beam_size"] = beam_size
     if prompt_passage:
         asr_opts["initial_prompt"] = expected_text
+    if vad_filter:
+        asr_opts["vad_filter"] = True
+    if drop_hallucinations:
+        asr_opts["drop_hallucinations"] = True
     transcript = transcribe(audio_path, model_size=model_size, **asr_opts)
     words = detect_miscues(
         expected_tokens,
@@ -130,4 +138,10 @@ def analyze(
         adjusted = score_with_accent_excused(
             words, duration_s=transcript.duration_s
         )
-    return Analysis(words=words, score=raw, accent_adjusted=adjusted)
+    return Analysis(
+        words=words,
+        score=raw,
+        accent_adjusted=adjusted,
+        transcript=transcript.text,
+        dropped_segments=getattr(transcript, "dropped_segments", 0),
+    )

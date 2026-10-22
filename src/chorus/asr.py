@@ -17,15 +17,45 @@ sized for this project's GPU budget; measure before using it.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
+
+
+@dataclass
+class Segment:
+    """One recognised stretch of speech, with Whisper's own confidence signals."""
+
+    text: str
+    start: float
+    end: float
+    no_speech_prob: float
+    avg_logprob: float
 
 
 @dataclass
 class Transcript:
     text: str
     duration_s: float
+    #: Every segment Whisper produced (before any hallucination filter), for diagnosis.
+    segments: list[Segment] = field(default_factory=list)
+    #: How many segments `drop_hallucinations` removed (0 when it is off).
+    dropped_segments: int = 0
+
+
+#: Whisper's own "this is silence" rule (openai/whisper transcribe.py): a segment is
+#: treated as no speech when no_speech_prob is above 0.6 AND avg_logprob is below -1.0.
+NO_SPEECH_THRESHOLD = 0.6
+LOGPROB_THRESHOLD = -1.0
+#: Measured on pure silence and noise: Whisper writes a lone "You" with no_speech_prob 0.92-0.94
+#: but a confident avg_logprob (-0.6 to -1.0), which Whisper's own two-signal rule misses.
+SURE_NO_SPEECH = 0.9
+
+
+def is_hallucinated(seg: Segment) -> bool:
+    if seg.no_speech_prob > SURE_NO_SPEECH:
+        return True
+    return seg.no_speech_prob > NO_SPEECH_THRESHOLD and seg.avg_logprob < LOGPROB_THRESHOLD
 
 
 def _resolve_device(cuda_device_count: int | None = None) -> str:
@@ -87,6 +117,8 @@ def transcribe(
     beam_size: int = 1,
     initial_prompt: str | None = None,
     hotwords: str | None = None,
+    vad_filter: bool = False,
+    drop_hallucinations: bool = False,
 ) -> Transcript:
     """Transcribe an audio file. Returns what was said, not what was expected.
 
@@ -95,6 +127,10 @@ def transcribe(
     the recogniser towards given text; passing the expected passage can make
     it write the expected word even when the reader said something else, so
     it is opt-in and must be checked against genuine-error retention.
+    vad_filter runs Silero voice-activity detection first so silence and noise are
+    never decoded (the usual source of invented text on a silent recording).
+    drop_hallucinations discards segments Whisper itself flags as silence
+    (see `is_hallucinated`); both are off by default.
     """
     path = Path(audio_path)
     if not path.is_file():
@@ -106,6 +142,23 @@ def transcribe(
         beam_size=beam_size,
         initial_prompt=initial_prompt,
         hotwords=hotwords,
+        vad_filter=vad_filter,
     )
-    text = " ".join(seg.text.strip() for seg in segments).strip()
-    return Transcript(text=text, duration_s=float(info.duration))
+    segs = [
+        Segment(
+            text=seg.text.strip(),
+            start=float(seg.start),
+            end=float(seg.end),
+            no_speech_prob=float(seg.no_speech_prob),
+            avg_logprob=float(seg.avg_logprob),
+        )
+        for seg in segments
+    ]
+    kept = [g for g in segs if not (drop_hallucinations and is_hallucinated(g))]
+    text = " ".join(g.text for g in kept).strip()
+    return Transcript(
+        text=text,
+        duration_s=float(info.duration),
+        segments=segs,
+        dropped_segments=len(segs) - len(kept),
+    )

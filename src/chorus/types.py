@@ -86,3 +86,7 @@ class Analysis:
     words: list[WordResult]
     score: ReadingScore
     accent_adjusted: ReadingScore | None
+    #: The recogniser's raw text (after any hallucination filter), for display.
+    transcript: str = ""
+    #: Segments the hallucination filter removed (0 unless that option was on).
+    dropped_segments: int = 0

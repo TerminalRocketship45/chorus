@@ -1,0 +1,346 @@
+{
+  "limitations": "Mandarin-L1 only (all 250 speakers of the speechocean762 corpus); ASR was small.en on CPU; one seeded sample of 2500 utterances from the corpus test split. This is not a general product claim. Most baseline false flags are not accent-shaped (ASR/text mismatch such as in->into), so the ASR sets the ceiling on what an accent filter can withdraw. Number words that Whisper renders as digits are normalised by miscue.normalize for integers 0-999 (larger or mixed tokens such as 2599 or 1st are left unchanged). Of the 2307 baseline false flags, 1815 are substitutions, 193 omissions and 299 insertions; an INSERTION-status false flag is a word read correctly with an extra word nearby, which the accent filter cannot touch. Final-consonant deletion cannot distinguish an accent from a dropped inflection: 13 of 972 genuine errors (expert accuracy < 8.0) were excused, e.g. its->it, opened->open, walked->walk.",
+  "genuine_errors_excused": 13,
+  "baseline_false_flag_rate_on_expert_correct": {
+    "rate": 0.15753892379131385,
+    "fp": 2307,
+    "expert_correct": 14644
+  },
+  "false_flags_by_status": {
+    "substitution": 1815,
+    "omission": 193,
+    "insertion": 299,
+    "total": 2307
+  },
+  "digit_rendering_false_flags": 0,
+  "false_flags_with_any_digit_in_heard": 12,
+  "words": 15967,
+  "utterances": 2500,
+  "counts_by_status": {
+    "correct": 12646,
+    "substitution": 2681,
+    "insertion": 316,
+    "omission": 282,
+    "self_correction": 34,
+    "repetition": 8
+  },
+  "expert_correct": 14644,
+  "expert_mispronounced": 1323,
+  "heard_verbatim": 12646,
+  "fp_before": 2307,
+  "fp_after": 2237,
+  "tp_before": 972,
+  "tp_after": 959,
+  "fp_reduction": 0.03034243606415258,
+  "retention": 0.9866255144032922,
+  "fp_reduction_ci95": [
+    0.023165679354459408,
+    0.03774487828392383
+  ],
+  "retention_ci95": [
+    0.9789473684210527,
+    0.9938875918799132
+  ],
+  "bootstrap_resamples": {
+    "fp_reduction": 1000,
+    "retention": 1000,
+    "requested": 1000
+  },
+  "baseline_flag_rate": 0.20536105718043465,
+  "filtered_flag_rate": 0.20016283584893843,
+  "excused_words": 83,
+  "excused_heard_is_real_english_word": 80,
+  "excused_real_word_dictionary": "nltk cmudict",
+  "excused_sample": [
+    [
+      "looked",
+      "look",
+      10.0
+    ],
+    [
+      "loves",
+      "love",
+      10.0
+    ],
+    [
+      "likes",
+      "like",
+      10.0
+    ],
+    [
+      "steven's",
+      "steven",
+      10.0
+    ],
+    [
+      "view",
+      "you",
+      10.0
+    ],
+    [
+      "defendants",
+      "defendant",
+      10.0
+    ],
+    [
+      "it's",
+      "it",
+      10.0
+    ],
+    [
+      "seen",
+      "see",
+      10.0
+    ],
+    [
+      "what's",
+      "what",
+      10.0
+    ],
+    [
+      "passed",
+      "pass",
+      10.0
+    ],
+    [
+      "let's",
+      "let",
+      10.0
+    ],
+    [
+      "colds",
+      "cold",
+      10.0
+    ],
+    [
+      "walked",
+      "walk",
+      10.0
+    ],
+    [
+      "farther",
+      "father",
+      10.0
+    ],
+    [
+      "likes",
+      "like",
+      10.0
+    ],
+    [
+      "desks",
+      "desk",
+      10.0
+    ],
+    [
+      "it's",
+      "it",
+      10.0
+    ],
+    [
+      "peoples",
+      "people",
+      10.0
+    ],
+    [
+      "loves",
+      "love",
+      8.0
+    ],
+    [
+      "seem",
+      "see",
+      10.0
+    ],
+    [
+      "three",
+      "swee",
+      8.0
+    ],
+    [
+      "thing",
+      "sin",
+      10.0
+    ],
+    [
+      "gives",
+      "give",
+      10.0
+    ],
+    [
+      "mine",
+      "my",
+      10.0
+    ],
+    [
+      "think",
+      "thing",
+      3.0
+    ],
+    [
+      "past",
+      "pass",
+      5.0
+    ],
+    [
+      "he's",
+      "he",
+      10.0
+    ],
+    [
+      "goal",
+      "go",
+      10.0
+    ],
+    [
+      "opened",
+      "open",
+      5.0
+    ],
+    [
+      "looked",
+      "look",
+      10.0
+    ],
+    [
+      "black",
+      "back",
+      10.0
+    ],
+    [
+      "looked",
+      "look",
+      5.0
+    ],
+    [
+      "he's",
+      "he",
+      10.0
+    ],
+    [
+      "moon",
+      "moo",
+      10.0
+    ],
+    [
+      "it's",
+      "it",
+      10.0
+    ],
+    [
+      "its",
+      "it",
+      10.0
+    ],
+    [
+      "loved",
+      "love",
+      10.0
+    ],
+    [
+      "sheets",
+      "sheet",
+      10.0
+    ],
+    [
+      "seen",
+      "see",
+      10.0
+    ],
+    [
+      "mike",
+      "my",
+      10.0
+    ]
+  ],
+  "false_positive_cases": [
+    {
+      "expected": "education",
+      "heard": "education",
+      "expert_accuracy": 8.0,
+      "status": "insertion",
+      "excused": false
+    },
+    {
+      "expected": "sing",
+      "heard": "same",
+      "expert_accuracy": 8.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "they",
+      "heard": "is",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "mouth",
+      "heard": "some",
+      "expert_accuracy": 8.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "the",
+      "heard": "have",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "yet",
+      "heard": "you",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "you",
+      "heard": "you",
+      "expert_accuracy": 10.0,
+      "status": "insertion",
+      "excused": false
+    },
+    {
+      "expected": "hen",
+      "heard": "him",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "lucy",
+      "heard": "this",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "would",
+      "heard": "we'll",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    }
+  ],
+  "model": "small.en",
+  "seed": 0,
+  "limit": 2500,
+  "language": "mandarin",
+  "beam_size": 5,
+  "same_sound": true,
+  "prompt_passage": false,
+  "digit_context": true,
+  "vad_filter": true,
+  "drop_hallucinations": false,
+  "normalize_peak": false,
+  "transcript_cache": "transcripts_small.en_beam5_vad.json",
+  "split": "test",
+  "sampled_ids": 2500,
+  "skipped_utterances": 0,
+  "skip_reasons": [],
+  "missing_from_scores": 0,
+  "missing_audio": 0
+}

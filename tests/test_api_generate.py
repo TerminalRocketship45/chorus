@@ -31,6 +31,9 @@ GOOD_SE = " ".join(
 )
 
 
+EXTRA = ("requested_topic", "topic_accepted")
+
+
 def reply(title="Night Sky", text=GOOD_EL, fenced=False):
     raw = json.dumps({"title": title, "text": text})
     return f"```json\n{raw}\n```" if fenced else raw
@@ -143,7 +146,8 @@ def test_generate_valid_json(client, monkeypatch):
     assert body["topic"] == "space" and body["band"] == "elementary"
     assert body["text"] == GOOD_EL and fake.calls == 1
     got = client.get(f"/api/passages/{body['id']}").json()
-    assert got == body
+    assert {k: v for k, v in body.items() if k not in EXTRA} == got
+    assert body["requested_topic"] is None and body["topic_accepted"] is True
 
 
 def test_generate_code_fenced(client, monkeypatch):
@@ -236,7 +240,7 @@ def test_generated_passage_stored_for_student(client, monkeypatch):
     ).json()
     lst = client.get(f"/api/students/{s['id']}/passages").json()
     assert [e["passage"]["id"] for e in lst] == [g["id"]]
-    assert lst[0] == {"passage": g, "read": False, "attempts": 0, "last_result": None}
+    assert lst[0] == {"passage": {k: v for k, v in g.items() if k not in EXTRA}, "read": False, "attempts": 0, "last_result": None}
     # AI passages are not in the library list
     assert all(p["source"] == "library" for p in client.get("/api/passages").json())
 

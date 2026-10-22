@@ -15,6 +15,7 @@ for _k, _v in {
     "CHORUS_BEAM_SIZE": "5",
     "CHORUS_SAME_SOUND": "1",
     "CHORUS_DIGIT_CONTEXT": "1",
+    "CHORUS_VAD": "1",
     "CHORUS_WARMUP": "1",
     "CHORUS_DB": "/tmp/chorus.db",
     "OMP_NUM_THREADS": "2",

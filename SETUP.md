@@ -206,6 +206,10 @@ Seeded sample of 2,500 utterances from the speechocean762 test split (Mandarin L
 | small.en beam 5 + same-sound | 2366 of 14,644 (16.2%) | 975 to 957 of 1,323 | 2366 to 2295, 3.0% (2.3-3.7) | 98.2% (97.3-98.9) |
 | small.en beam 5 + same-sound + digit-context (shipped) | 2318 of 14,644 (15.8%) | 974 to 956 of 1,323 | 2318 to 2247, 3.1% (2.4-3.8) | 98.2% (97.3-98.9) |
 | small.en beam 5 + same-sound + passage prompt (rejected) | 197 of 14,644 (1.3%) | 231 to 228 of 1,323 | 197 to 187, 5.1% (2.4-8.4) | 98.7% (97.1-100.0) |
+| small.en shipped + VAD filter | 2307 of 14,644 (15.8%) | 972 to 959 of 1,323 | 2307 to 2237, 3.0% (2.3-3.8) | 98.7% (97.9-99.4) |
+| small.en shipped + hallucination filter | 2312 of 14,644 (15.8%) | 975 to 957 of 1,323 | 2312 to 2242, 3.0% (2.3-3.8) | 98.2% (97.3-98.9) |
+| small.en shipped + peak normalisation | 2331 of 14,644 (15.9%) | 976 to 959 of 1,323 | 2331 to 2268, 2.7% (2.1-3.4) | 98.3% (97.4-99.0) |
+| small.en shipped + VAD + hallucination filter + normalisation (app default) | 2308 of 14,644 (15.8%) | 974 to 963 of 1,323 | 2308 to 2243, 2.8% (2.1-3.5) | 98.9% (98.1-99.5) |
 | base.en default | 3251 of 14,644 (22.2%) | 1063 to 1036 of 1,323 | 3251 to 3166, 2.6% (2.1-3.2) | 97.5% (96.5-98.4) |
 | base.en beam 5 + same-sound | 2981 of 14,644 (20.4%) | 1062 to 1035 of 1,323 | 2981 to 2896, 2.9% (2.3-3.4) | 97.5% (96.5-98.3) |
 | base.en beam 5 + same-sound + digit-context | 2971 of 14,644 (20.3%) | 1062 to 1035 of 1,323 | 2971 to 2886, 2.9% (2.3-3.5) | 97.5% (96.5-98.3) |
@@ -213,6 +217,15 @@ Seeded sample of 2,500 utterances from the speechocean762 test split (Mandarin L
 - **Beam 5** decodes with a beam of five candidate transcripts instead of greedy decoding, so Whisper more often picks the word actually said. It is roughly twice as slow on CPU.
 - **Same-sound** counts a heard word as correct when it has the same CMU-dictionary pronunciation as the expected word (two/too, their/there): the recogniser chose a spelling, the reader said the right sound.
 - **Digit-context** reads a run of digits Whisper wrote as one number (such as 495) digit by digit when the passage has the digits spelled out that way, and as a cardinal otherwise.
+
+### Silence and quiet recordings
+
+A real user recorded silence and the app showed Whisper's invented text ("subs ... www zeoranger co uk") as misread words. Four guards now sit on the analyze path, each switched on in the app by default:
+
+- **Voice-activity filter** (`CHORUS_VAD`, default on): Silero VAD removes non-speech before decoding. On the 2,500-utterance set it is neutral to slightly better (table above: false flags 2307 vs 2318, genuine errors flagged 972 vs 974, CIs overlap). Synthetic check (small.en, beam 5, CPU): 10 s of digital silence and 10 s of -35 dB noise decode to a lone "You" without VAD and to nothing with it; the fixture padded with 5 s of silence or -45 dB noise each side reads "The cat sat on the mat." with or without VAD.
+- **Hallucination filter** (`CHORUS_DROP_HALLUCINATIONS`, default on): drops a segment when Whisper's no_speech_prob is above 0.6 and avg_logprob below -1.0 (Whisper's own rule), or when no_speech_prob is above 0.9 (measured: silence gives "You" at 0.92-0.94 with avg_logprob -0.6 to -1.0, which the two-signal rule misses). Neutral on the eval (2312 false flags, 975 to 957 genuine).
+- **Loudness**: the decoded WAV's peak is measured. Below -40 dBFS the upload is rejected before any model runs ("Your recording was very quiet..."). Between -40 and -6 dBFS it is peak-normalised to -3 dBFS. Normalisation alone is neutral on the eval (2331 false flags, 976 to 959 genuine, +13 and within noise; speechocean762 is mostly recorded at normal level, so this mainly shows it does no harm) and on the fixture attenuated by 30 dB the transcript is identical before and after (peak -30.5 to -3.0 dBFS, 27.5 dB gain). Combined, all three guards: 2308 false flags, 974 to 963 genuine errors flagged.
+- **Heard-enough rule**: after analysis, if fewer than 15% of the passage's words were heard as correct or close (same word, or spelling similarity of at least 0.6), the response is 422 "Chorus couldn't hear enough reading. Check the microphone, move closer, and try again." A struggling reader still matches far more than 15%; text invented from silence matches almost none. The measured levels, transcript and this fraction are in the debug JSON.
 
 Passage prompting (giving Whisper the passage as `initial_prompt`) was tested and rejected. It cuts false flags to 197, but only because it hides genuine errors: Whisper writes the expected word even when the reader said something else, and the number of genuine errors flagged falls from 976 (beam 5 alone) to 231. It stays off, and the API does not expose it.
 
@@ -231,7 +244,7 @@ None of these are working; do not treat them as such.
 - **Alignment cost grows faster than the audio length, with no length guard.** Measured on this machine (CPU, alignment only, the fixture tiled to length): 10 s of audio took 4.8 s, 30 s took 9.9 s, 60 s took 21.8 s and 120 s took 63.5 s. `align_words` does one forward pass over the whole waveform, with no chunking, cap or timeout. Phase 2 needs chunking or a duration cap before accepting real recordings of arbitrary length.
 - **Alignment.** `align_words` rebuilds the alignment model on every call (about 2 s, from the task notes; not re-timed) and accepts only `[a-z']+` words. The pipeline aligns only alignable, non-omitted words.
 - **WCPM.** `analyze` uses the whole recording duration, so leading and trailing silence lowers WCPM.
-- **No voice-activity filter.** faster-whisper's `vad_filter` defaults to `False` and the code does not set it, so hallucinated words on quiet real audio would appear as insertions. This is untested on real recordings. The only spoken fixture is a synthetic Windows text-to-speech voice, which proves the plumbing only, not accuracy on children or accented readers.
+- **Voice-activity filter.** The app turns it on (`CHORUS_VAD=1`); the library default (`transcribe(vad_filter=False)`) is unchanged. It is measured on speechocean762 and on synthetic silence only, not on children's real classroom recordings. The only spoken fixture is a synthetic Windows text-to-speech voice, which proves the plumbing only, not accuracy on children or accented readers.
 - **Phase 2 does not exist.** No FastAPI service, no React onboarding (grade band, home language), no teacher or parent views, no deployment.
 
 ## Running the FastAPI service (`chorus_api`)
@@ -248,11 +261,15 @@ Useful env vars (all optional):
 | Var | Default | Effect |
 | --- | --- | --- |
 | `CHORUS_DB` | `./chorus.db` | SQLite file path (students, sessions; audio is never stored) |
-| `CHORUS_ASR_MODEL` | `base.en` | faster-whisper model size passed to `chorus.pipeline.analyze` |
+| `CHORUS_ASR_MODEL` | `small.en` | faster-whisper model size passed to `chorus.pipeline.analyze` |
+| `CHORUS_VAD` | see "Silence and quiet recordings" | `1` runs voice-activity detection before decoding |
+| `CHORUS_DROP_HALLUCINATIONS` | `1` | drop segments Whisper flags as silence (no_speech_prob above 0.6 and avg_logprob below -1.0) |
+| `CHORUS_DEBUG_AUDIO_DIR` | unset (off) | **debugging aid only**: when set, every `/api/analyze` call saves the raw upload, the decoded WAV and a JSON (passage id, transcript, options, levels, word results) into this directory. Recordings are personal data: leave unset in production, delete the files after use |
+| `HF_TOKEN`, `CHORUS_PASSAGE_MODEL`, `CHORUS_FEEDBACK_MODEL` | unset | AI passages, typed topics and the feedback comment (see `deploy/hf_gradio/DEPLOY.md`) |
 | `CHORUS_WARMUP` | unset | set to `1` to load the Whisper and aligner models on startup, so the first real request isn't the one that pays the load cost |
 
 `GET /api/health`, `/api/languages`, `/api/passages` need no model. `POST
-/api/analyze` loads `base.en` (faster-whisper) and the MMS_FA aligner on its
+/api/analyze` loads `small.en` (faster-whisper) and the MMS_FA aligner on its
 first call unless `CHORUS_WARMUP=1` was set; both are cached per process
 afterwards (`chorus.asr._get_model`, `chorus.align._get_model_bundle`).
 
