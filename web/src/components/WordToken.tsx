@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { WordResult } from "../types/api";
 import { visualForDisplay, type WordMarker } from "../lib/display";
 import { Icon } from "./Icon";
@@ -15,12 +16,14 @@ export function MarkerIcon({ marker }: { marker: Exclude<WordMarker, "none"> }) 
 interface WordTokenProps {
   word: WordResult;
   selected: boolean;
+  /** The word being spoken in the replay. Layered over the display colouring. */
+  current?: boolean;
   onSelect: (word: WordResult) => void;
 }
 
-export function WordToken({ word, selected, onSelect }: WordTokenProps) {
+export const WordToken = memo(function WordToken({ word, selected, current = false, onSelect }: WordTokenProps) {
   const visual = visualForDisplay(word.display);
-  const classes = ["word", `word--${visual.className}`].join(" ");
+  const classes = ["word", `word--${visual.className}`, current ? "word--current" : ""].filter(Boolean).join(" ");
 
   let ariaLabel = word.expected;
   if (visual.className === "misread") ariaLabel = `${word.expected}, tricky word`;
@@ -33,10 +36,11 @@ export function WordToken({ word, selected, onSelect }: WordTokenProps) {
       className={classes}
       aria-label={ariaLabel}
       aria-pressed={selected}
+      data-word-index={word.index}
       onClick={() => onSelect(word)}
     >
       <span>{word.expected}</span>
       {visual.marker !== "none" && <MarkerIcon marker={visual.marker} />}
     </button>
   );
-}
+});

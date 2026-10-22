@@ -7,8 +7,6 @@ import type { AnalyzeResponse, Passage, PassageLastResult, PassageProgress } fro
  */
 export type LocalHistory = Record<string, { attempts: number; last_result: PassageLastResult }>;
 
-export const MAX_LOCAL_PASSAGES = 30;
-
 export function recordLocalResult(
   history: LocalHistory,
   passageId: string,
@@ -52,32 +50,26 @@ export function collectExcludeIds(...lists: Array<Array<{ id: string }>>): strin
   return ids;
 }
 
-/** Puts a freshly written passage at the top; a repeated id moves to the top instead of doubling. */
-export function prependPassage(rows: PassageProgress[], passage: Passage): PassageProgress[] {
-  const existing = rows.find((row) => row.passage.id === passage.id);
-  const entry: PassageProgress = existing ?? { passage, read: false, attempts: 0, last_result: null };
-  return [entry, ...rows.filter((row) => row.passage.id !== passage.id)];
-}
-
-/** Newest first, no duplicates, capped so localStorage stays small. */
-export function rememberLocalPassage(list: Passage[], passage: Passage): Passage[] {
-  return [passage, ...list.filter((p) => p.id !== passage.id)].slice(0, MAX_LOCAL_PASSAGES);
-}
-
 /**
- * Splits what the reader sees into "your passages" (written for them or already read)
- * and the rest of the library, with no passage listed twice.
+ * Progress for one passage: the server's row for a student (matched by id),
+ * otherwise the local history (readers without a nickname).
  */
-export function buildSections(
-  personal: PassageProgress[],
-  library: Passage[],
+export function progressFor(
+  passage: Passage,
+  rows: PassageProgress[],
   history: LocalHistory | null
-): { mine: PassageProgress[]; library: PassageProgress[] } {
-  const mineIds = new Set(personal.map((row) => row.passage.id));
-  return {
-    mine: personal,
-    library: library
-      .filter((p) => !mineIds.has(p.id))
-      .map((p) => (history ? progressForPassage(p, history) : { passage: p, read: false, attempts: 0, last_result: null })),
-  };
+): PassageProgress {
+  const row = rows.find((r) => r.passage.id === passage.id);
+  if (row) return { ...row, passage };
+  return history ? progressForPassage(passage, history) : { passage, read: false, attempts: 0, last_result: null };
+}
+
+/** The library list with a read mark and last score per passage; `hideId` drops the current generated passage. */
+export function libraryRows(
+  library: Passage[],
+  rows: PassageProgress[],
+  history: LocalHistory | null,
+  hideId: string | null
+): PassageProgress[] {
+  return library.filter((p) => p.id !== hideId).map((p) => progressFor(p, rows, history));
 }

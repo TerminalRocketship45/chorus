@@ -10,6 +10,7 @@ import { recordLocalResult } from "../lib/history";
 import { loadHistory, saveHistory } from "../lib/storage";
 import { Screen } from "../components/Screen";
 import { Icon, Spinner } from "../components/Icon";
+import { MicMeter } from "../components/MicMeter";
 
 type RecordingState = "loading-passage" | "idle" | "requesting-mic" | "recording" | "analyzing" | "error";
 
@@ -28,6 +29,7 @@ export function Read() {
   const [elapsed, setElapsed] = useState(0);
   const [micError, setMicError] = useState<string | null>(null);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -74,11 +76,12 @@ export function Read() {
     setMicError(null);
     setState("requesting-mic");
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
+      const media = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = media;
+      setStream(media);
       const mimeType = pickRecorderMimeType();
       mimeTypeRef.current = mimeType;
-      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      const recorder = mimeType ? new MediaRecorder(media, { mimeType }) : new MediaRecorder(media);
       mediaRecorderRef.current = recorder;
       chunksRef.current = [];
 
@@ -119,6 +122,7 @@ export function Read() {
       recorder.stop();
     }
     streamRef.current?.getTracks().forEach((t) => t.stop());
+    setStream(null);
   }
 
   async function handleRecordingStopped() {
@@ -149,7 +153,8 @@ export function Read() {
         if (err.status === 413) {
           setAnalyzeError("That recording is too long or too large. Try a shorter reading.");
         } else if (err.status === 422) {
-          setAnalyzeError("Chorus couldn't make out any speech in that recording. Please try again somewhere quiet.");
+          // The service words these kindly ("Chorus couldn't hear enough reading…", "Your recording was very quiet…").
+          setAnalyzeError(err.message || "Chorus couldn't make out any speech in that recording. Please try again somewhere quiet.");
         } else if (err.status === 503) {
           setAnalyzeError("Chorus is busy helping other readers right now. Please try again in a minute.");
         } else {
@@ -205,6 +210,7 @@ export function Read() {
           <span style={{ width: `${Math.min(100, (elapsed / MAX_RECORDING_SECONDS) * 100)}%` }} />
         </div>
       )}
+      <MicMeter stream={stream} active={recording} />
       <button
         type="button"
         className="rec-btn"

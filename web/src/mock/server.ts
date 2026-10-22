@@ -7,8 +7,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import {
   MOCK_ANALYZE_NO_ACCENT,
-  MOCK_GENERATED,
-  MOCK_INTERESTS,
+  MOCK_TOPIC_TEXT,
   MOCK_ANALYZE_WITH_ACCENT,
   MOCK_LANGUAGES,
   MOCK_PASSAGES,
@@ -19,7 +18,6 @@ import type { GradeBand, Passage, PassageProgress, Student } from "../types/api"
 
 let nextStudentId = 1000;
 let nextGeneratedId = 1;
-let generateCalls = 0;
 
 /** Passages written so far (any student or none), so GET /api/passages/g-N works. */
 const generated = new Map<string, Passage>();
@@ -28,7 +26,7 @@ const studentRows = new Map<number, PassageProgress[]>();
 /** Students created or patched during this dev session. */
 const liveStudents = new Map<number, Student>();
 
-const INTEREST_CODES = new Set(MOCK_INTERESTS.map((i) => i.code));
+const BLOCKED_TOPICS = /\b(gun|guns|weapon|weapons|bomb|drugs)\b/i;
 
 function findPassage(id: string): Passage | undefined {
   return MOCK_PASSAGES.find((p) => p.id === id) ?? generated.get(id);
@@ -126,14 +124,9 @@ export async function handleMockRequest(
     return true;
   }
 
-  if (method === "GET" && path === "/api/interests") {
-    sendJson(res, 200, MOCK_INTERESTS);
-    return true;
-  }
-
   if (method === "POST" && path === "/api/passages/generate") {
     const raw = await readBody(req);
-    let body: { band?: string; interests?: string[]; student_id?: number | null; exclude_ids?: string[] } = {};
+    let body: { band?: string; topic?: string; student_id?: number | null; exclude_ids?: string[] } = {};
     try {
       body = JSON.parse(raw.toString("utf-8"));
     } catch {
@@ -144,37 +137,32 @@ export async function handleMockRequest(
       sendJson(res, 400, { detail: `unknown band: '${String(body.band)}'` });
       return true;
     }
-    const interests = body.interests ?? [];
-    const unknown = interests.find((c) => !INTEREST_CODES.has(c));
-    if (unknown) {
-      sendJson(res, 400, { detail: `unknown interest: '${unknown}'` });
-      return true;
-    }
+    const topic = (body.topic ?? "").trim().slice(0, 80);
     const exclude = new Set(body.exclude_ids ?? []);
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    generateCalls += 1;
     let passage: Passage | null = null;
 
-    // Every third call behaves like the "model unavailable" fallback: a library passage.
-    if (generateCalls % 3 === 0) {
+    // Unsafe or unusable topics never error: the reader gets a library passage.
+    const accepted = !BLOCKED_TOPICS.test(topic);
+    if (!accepted) {
       const candidates = MOCK_PASSAGES.filter((p) => p.band === body.band && !exclude.has(p.id));
-      passage = candidates.find((p) => interests.includes(p.topic)) ?? candidates[0] ?? null;
-    }
-    if (!passage) {
-      const pool = MOCK_GENERATED[body.band];
-      const codes = interests.length > 0 ? interests : Object.keys(pool);
-      const code = codes[(generateCalls - 1) % codes.length];
-      const draft = pool[code] ?? pool.animals;
+      const pick = candidates[0] ?? MOCK_PASSAGES.find((p) => p.band === body.band)!;
+      passage = { ...pick, requested_topic: topic, topic_accepted: false };
+    } else {
+      const label = topic || "animals";
       const id = `g-${nextGeneratedId++}`;
+      const text = `${MOCK_TOPIC_TEXT[(nextGeneratedId - 1) % MOCK_TOPIC_TEXT.length].replace(/\{t\}/g, label)}`;
       passage = {
         id,
-        title: draft.title,
+        title: `All About ${label.charAt(0).toUpperCase() + label.slice(1)}`,
         band: body.band,
         level: 2,
-        topic: code,
-        word_count: draft.text.split(/\s+/).length,
-        text: draft.text,
+        topic: label,
+        word_count: text.split(/\s+/).length,
+        text,
         source: "ai",
+        requested_topic: topic || null,
+        topic_accepted: true,
       };
       generated.set(id, passage);
     }
@@ -185,6 +173,17 @@ export async function handleMockRequest(
       }
     }
     sendJson(res, 201, passage);
+    return true;
+  }
+
+  if (method === "POST" && path === "/api/feedback") {
+    await readBody(req);
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    sendJson(res, 200, {
+      feedback:
+        "Nice work getting through the whole passage. You read about 46 words correctly in a minute, and the middle of the passage was steady. Give the word brown another try, then read it once more.",
+      source: "template",
+    });
     return true;
   }
 
@@ -222,16 +221,11 @@ export async function handleMockRequest(
       sendJson(res, 400, { detail: "Body must be JSON." });
       return true;
     }
-    if (patch.interests && patch.interests.some((c) => !INTEREST_CODES.has(c))) {
-      sendJson(res, 400, { detail: "unknown interest code." });
-      return true;
-    }
     const updated: Student = {
       ...current,
       ...(patch.name !== undefined ? { name: patch.name } : {}),
       ...(patch.grade_band !== undefined ? { grade_band: patch.grade_band } : {}),
       ...(patch.home_language !== undefined ? { home_language: patch.home_language } : {}),
-      ...(patch.interests !== undefined ? { interests: patch.interests } : {}),
     };
     liveStudents.set(id, updated);
     sendJson(res, 200, updated);
@@ -258,7 +252,7 @@ export async function handleMockRequest(
 
   if (method === "POST" && path === "/api/students") {
     const raw = await readBody(req);
-    let payload: { name?: string; grade_band?: GradeBand; home_language?: string; interests?: string[] } = {};
+    let payload: { name?: string; grade_band?: GradeBand; home_language?: string} = {};
     try {
       payload = JSON.parse(raw.toString("utf-8"));
     } catch {
@@ -269,17 +263,12 @@ export async function handleMockRequest(
       sendJson(res, 400, { detail: "name, grade_band and home_language are required." });
       return true;
     }
-    const interests = payload.interests ?? [];
-    if (interests.some((c) => !INTEREST_CODES.has(c))) {
-      sendJson(res, 400, { detail: "unknown interest code." });
-      return true;
-    }
     const student: Student = {
       id: nextStudentId++,
       name: payload.name,
       grade_band: payload.grade_band,
       home_language: payload.home_language,
-      interests,
+      interests: [],
       created_at: new Date().toISOString(),
     };
     liveStudents.set(student.id, student);
@@ -337,6 +326,7 @@ export async function handleMockRequest(
     // student_id was given (nothing is saved without one).
     sendJson(res, 200, {
       ...fixture,
+      transcript: fixture === MOCK_ANALYZE_NO_ACCENT ? "rain field on the the old red roof" : "the kwick down jumps over over the lazy dog again today",
       home_language: homeLanguage ?? null,
       session_id: studentId ? fixture.session_id : null,
     });

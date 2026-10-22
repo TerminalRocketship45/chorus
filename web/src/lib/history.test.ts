@@ -1,13 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { Passage, PassageProgress } from "../types/api";
 import {
-  buildSections,
+  libraryRows,
   collectExcludeIds,
-  MAX_LOCAL_PASSAGES,
-  prependPassage,
   progressForPassage,
   recordLocalResult,
-  rememberLocalPassage,
+  progressFor,
 } from "./history";
 
 const p = (id: string): Passage => ({
@@ -64,23 +62,18 @@ describe("local history", () => {
   });
 });
 
-describe("list helpers", () => {
-  it("prepends a new passage and moves a repeat to the top without doubling it", () => {
-    const base = prependPassage(prependPassage([], p("g-1")), p("g-2"));
-    expect(base.map((r) => r.passage.id)).toEqual(["g-2", "g-1"]);
-    expect(prependPassage(base, p("g-1")).map((r) => r.passage.id)).toEqual(["g-1", "g-2"]);
+describe("library rows", () => {
+  it("marks library passages from server rows or local history and hides the generated one", () => {
+    const rows: PassageProgress[] = [
+      { passage: p("el-02"), read: true, attempts: 1, last_result: recordLocalResult({}, "el-02", analysis)["el-02"].last_result },
+    ];
+    const out = libraryRows([p("el-01"), p("el-02"), p("el-03")], rows, null, "el-03");
+    expect(out.map((r) => [r.passage.id, r.read])).toEqual([["el-01", false], ["el-02", true]]);
+    const local = libraryRows([p("el-01")], [], recordLocalResult({}, "el-01", analysis), null);
+    expect(local[0].read).toBe(true);
   });
-
-  it("caps remembered local passages", () => {
-    let list: Passage[] = [];
-    for (let i = 0; i < MAX_LOCAL_PASSAGES + 5; i++) list = rememberLocalPassage(list, p(`g-${i}`));
-    expect(list).toHaveLength(MAX_LOCAL_PASSAGES);
-    expect(list[0].id).toBe(`g-${MAX_LOCAL_PASSAGES + 4}`);
-  });
-
-  it("keeps library passages out of the library section when already in the personal list", () => {
-    const personal = [{ passage: p("el-01"), read: true, attempts: 1, last_result: null }];
-    const sections = buildSections(personal, [p("el-01"), p("el-02")], null);
-    expect(sections.library.map((r) => r.passage.id)).toEqual(["el-02"]);
+  it("progressFor prefers the server row", () => {
+    const rows: PassageProgress[] = [{ passage: p("g-1"), read: true, attempts: 2, last_result: null }];
+    expect(progressFor(p("g-1"), rows, {}).attempts).toBe(2);
   });
 });

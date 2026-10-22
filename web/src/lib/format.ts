@@ -16,6 +16,11 @@ export function formatElapsed(totalSeconds: number): string {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
+/** "Sharks · 62 words" subtitle for the generated passage. */
+export function formatTopicMeta(topic: string, wordCount: number): string {
+  return `${topic.charAt(0).toUpperCase() + topic.slice(1)} · ${wordCount} words`;
+}
+
 /** "Space · Level 2 · 62 words" style subtitle for a passage row. */
 export function formatPassageMeta(topic: string, level: number, wordCount: number): string {
   const label = topic.charAt(0).toUpperCase() + topic.slice(1);

@@ -4,18 +4,18 @@ import type { GradeBand, LanguageOption } from "../types/api";
 import { createStudent, getLanguages, ApiRequestError } from "../lib/api";
 import { useAppState } from "../context/AppContext";
 import { FALLBACK_LANGUAGES, NATIVE_NAMES } from "../content/languages";
-import { INTERESTS } from "../content/interests";
+import { normalizeTopic, MAX_TOPIC_LENGTH } from "../lib/topic";
 import { Screen } from "../components/Screen";
 import { Icon } from "../components/Icon";
 
-type Step = "grade" | "language" | "interests" | "name";
-const ORDER: Step[] = ["grade", "language", "interests", "name"];
+type Step = "grade" | "language" | "topic" | "name";
+const ORDER: Step[] = ["grade", "language", "topic", "name"];
 
 const BACK_LABEL: Record<Step, string> = {
   grade: "Home",
   language: "Grade",
-  interests: "Language",
-  name: "Interests",
+  topic: "Language",
+  name: "Topic",
 };
 
 export function Onboarding() {
@@ -25,7 +25,7 @@ export function Onboarding() {
   const [gradeBand, setGradeBandLocal] = useState<GradeBand | null>(app.gradeBand);
   const [languages, setLanguages] = useState<LanguageOption[]>(FALLBACK_LANGUAGES);
   const [homeLanguage, setHomeLanguageLocal] = useState<string | null>(app.homeLanguage);
-  const [interests, setInterestsLocal] = useState<string[]>(app.interests);
+  const [topic, setTopicLocal] = useState<string>(app.topic);
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -58,15 +58,13 @@ export function Onboarding() {
     app.setHomeLanguage(code);
   }
 
-  function toggleInterest(code: string) {
-    const next = interests.includes(code) ? interests.filter((c) => c !== code) : [...interests, code];
-    setInterestsLocal(next);
-    app.setInterests(next);
+  function submitTopic() {
+    app.setTopic(normalizeTopic(topic));
+    setStep("name");
   }
 
   async function finishWithName() {
     const trimmed = name.trim();
-    app.setInterests(interests);
     if (!trimmed || !gradeBand || !homeLanguage) {
       navigate("/passages");
       return;
@@ -78,7 +76,6 @@ export function Onboarding() {
         name: trimmed,
         grade_band: gradeBand,
         home_language: homeLanguage,
-        interests,
       });
       app.setStudent(student.id, student.name);
       navigate("/passages");
@@ -123,20 +120,15 @@ export function Onboarding() {
         type="button"
         className="btn btn--filled btn--block"
         disabled={!homeLanguage}
-        onClick={() => setStep("interests")}
+        onClick={() => setStep("topic")}
       >
         Continue
       </button>
     );
-  } else if (step === "interests") {
+  } else if (step === "topic") {
     bottom = (
-      <button
-        type="button"
-        className="btn btn--filled btn--block"
-        disabled={interests.length === 0}
-        onClick={() => setStep("name")}
-      >
-        Continue
+      <button type="button" className="btn btn--filled btn--block" onClick={submitTopic}>
+        {normalizeTopic(topic) ? "Continue" : "Skip"}
       </button>
     );
   } else {
@@ -223,27 +215,34 @@ export function Onboarding() {
         </section>
       )}
 
-      {step === "interests" && (
-        <section className="section" aria-labelledby="interests-heading">
+      {step === "topic" && (
+        <section className="section" aria-labelledby="topic-heading">
           <div className="title-block">
-            <h1 className="large-title large-title--medium" id="interests-heading">
-              What do you like to read about?
+            <h1 className="large-title large-title--medium" id="topic-heading">
+              What would you like to read about?
             </h1>
           </div>
-          <div className="chips" role="group" aria-labelledby="interests-heading">
-            {INTERESTS.map((item) => (
-              <button
-                key={item.code}
-                type="button"
-                className="chip"
-                aria-pressed={interests.includes(item.code)}
-                onClick={() => toggleInterest(item.code)}
-              >
-                {interests.includes(item.code) && <Icon name="check" size={16} strokeWidth={3} />}
-                {item.label}
-              </button>
-            ))}
-          </div>
+          <form
+            className="group"
+            onSubmit={(e) => {
+              e.preventDefault();
+              submitTopic();
+            }}
+          >
+            <label>
+              <span className="sr-only">Topic</span>
+              <input
+                className="field"
+                type="text"
+                value={topic}
+                onChange={(e) => setTopicLocal(e.target.value)}
+                placeholder="Sharks, soccer, machine learning…"
+                maxLength={MAX_TOPIC_LENGTH}
+                autoComplete="off"
+                enterKeyHint="next"
+              />
+            </label>
+          </form>
         </section>
       )}
 

@@ -24,6 +24,9 @@ export interface Passage {
   text: string;
   /** "ai" passages have ids like g-12; the UI never labels them differently. */
   source: PassageSource;
+  /** Set on generated passages (docs/api.md, typed topics). */
+  requested_topic?: string | null;
+  topic_accepted?: boolean;
 }
 
 export type PassageSource = "library" | "ai";
@@ -38,7 +41,8 @@ export interface Student {
   name: string;
   grade_band: GradeBand;
   home_language: string;
-  interests: string[];
+  /** Kept by the API for compatibility; the client no longer uses it. */
+  interests?: string[];
   created_at: string;
 }
 
@@ -106,6 +110,21 @@ export interface AnalyzeResponse {
   /** null when no accent rules apply. */
   accent_adjusted: ReadingScore | null;
   practice_words: string[];
+  /** The recognizer's raw text (what Chorus heard). */
+  transcript?: string;
+}
+
+export interface FeedbackRequest {
+  passage_id: string;
+  home_language: string | null;
+  words: WordResult[];
+  score: ReadingScore;
+  accent_adjusted: ReadingScore | null;
+}
+
+export interface FeedbackResponse {
+  feedback: string;
+  source: "ai" | "template";
 }
 
 export interface SessionSummary {
@@ -138,7 +157,8 @@ export interface ApiErrorBody {
 /** Body for POST /api/passages/generate (docs/api.md). */
 export interface GeneratePassageRequest {
   band: GradeBand;
-  interests: string[];
+  /** Free text the reader typed, trimmed, at most 80 characters. */
+  topic?: string;
   student_id: number | null;
   exclude_ids: string[];
 }

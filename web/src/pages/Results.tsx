@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import type { AnalyzeResponse, Passage, WordResult } from "../types/api";
 import { WordToken } from "../components/WordToken";
@@ -7,6 +7,10 @@ import { ScorePanel } from "../components/ScorePanel";
 import { visualForDisplay } from "../lib/display";
 import { Screen } from "../components/Screen";
 import { Icon } from "../components/Icon";
+import { Feedback } from "../components/Feedback";
+import { ReplayPlayer } from "../components/ReplayPlayer";
+import { useReplay } from "../hooks/useReplay";
+import { hasTiming } from "../lib/replay";
 
 interface LocationState {
   analysis: AnalyzeResponse;
@@ -26,24 +30,66 @@ function speak(text: string) {
   }
 }
 
+function prefersReducedMotion(): boolean {
+  try {
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  } catch {
+    return false;
+  }
+}
+
+/** Keeps the spoken word comfortably between the sticky bars; smooth unless the reader asked for less motion. */
+function keepWordInView(index: number) {
+  const el = document.querySelector<HTMLElement>(`[data-word-index="${index}"]`);
+  if (!el) return;
+  const root = el.closest<HTMLElement>("[data-scroll-root]");
+  const box = root ? root.getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
+  const r = el.getBoundingClientRect();
+  const top = box.top + 170; // navigation bar and the player
+  const bottom = box.bottom - 110; // action bar
+  if (r.top < top || r.bottom > bottom) {
+    el.scrollIntoView({ block: "center", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+  }
+}
+
 export function Results() {
   const location = useLocation();
   const navigate = useNavigate();
   const state = location.state as LocationState | null;
 
   const [selected, setSelected] = useState<WordResult | null>(null);
-  const audioElRef = useRef<HTMLAudioElement | null>(null);
+  const [heardOpen, setHeardOpen] = useState(false);
 
-  const audioUrl = useMemo(() => {
-    if (!state?.audioBlob) return null;
-    return URL.createObjectURL(state.audioBlob);
-  }, [state?.audioBlob]);
+  const blob = state?.audioBlob ?? null;
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  // Created and revoked in the same effect so a StrictMode remount never leaves a revoked URL behind.
+  useEffect(() => {
+    if (!blob) {
+      setAudioUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    setAudioUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [blob]);
+
+  const words = state?.analysis.words ?? [];
+  const replay = useReplay(audioUrl, words);
+  const { playFromWord, playing, current, available } = replay;
+  const canReplay = available && audioUrl !== null && words.some(hasTiming);
 
   useEffect(() => {
-    return () => {
-      if (audioUrl) URL.revokeObjectURL(audioUrl);
-    };
-  }, [audioUrl]);
+    if (playing && current !== null) keepWordInView(current);
+  }, [playing, current]);
+
+  const selectWord = useCallback(
+    (word: WordResult) => {
+      setSelected(word);
+      if (canReplay && hasTiming(word)) playFromWord(word);
+      else if (!canReplay) speak(word.expected);
+    },
+    [canReplay, playFromWord]
+  );
 
   if (!state) {
     return (
@@ -60,28 +106,10 @@ export function Results() {
   }
 
   const { analysis, passage } = state;
-
-  function selectWord(word: WordResult) {
-    setSelected(word);
-    speak(word.expected);
-  }
-
-  function playHeardSlice(word: WordResult) {
-    if (!audioUrl || word.start == null || word.end == null) return;
-    const audio = audioElRef.current ?? new Audio();
-    audioElRef.current = audio;
-    audio.src = audioUrl;
-    audio.currentTime = word.start;
-    const duration = Math.max(0.15, word.end - word.start);
-    audio.play().catch(() => {
-      // Autoplay / decode issues shouldn't crash the page.
-    });
-    window.setTimeout(() => {
-      if (!audio.paused) audio.pause();
-    }, duration * 1000);
-  }
-
   const selectedVisual = selected ? visualForDisplay(selected.display) : null;
+  const lastEnd = words.reduce((m, w) => Math.max(m, w.end ?? 0), 0);
+  const durationHint = Math.max(lastEnd, analysis.score.duration_s);
+  const transcript = analysis.transcript?.trim();
 
   return (
     <Screen
@@ -95,17 +123,58 @@ export function Results() {
       }
     >
       <p className="lede" style={{ marginTop: -16 }}>
-        Here's how your reading went. Tap any word to hear it.
+        {canReplay ? "Here's how your reading went. Play it back, or tap a word to jump to it." : "Here's how your reading went. Tap any word to hear it."}
       </p>
 
       <ScorePanel score={analysis.score} accentAdjusted={analysis.accent_adjusted} />
 
+      <Feedback analysis={analysis} />
+
       <section className="section" aria-label="Your reading, word by word">
-        <div className="group reading">
-          {analysis.words.map((word) => (
-            <WordToken key={word.index} word={word} selected={selected?.index === word.index} onSelect={selectWord} />
+        {canReplay && (
+          <ReplayPlayer
+            audio={replay.audio}
+            playing={playing}
+            durationHint={durationHint}
+            onToggle={replay.toggle}
+            onSeek={replay.seek}
+          />
+        )}
+        <div className="group reading" data-replay={canReplay}>
+          {words.map((word) => (
+            <WordToken
+              key={word.index}
+              word={word}
+              selected={selected?.index === word.index}
+              current={current === word.index}
+              onSelect={selectWord}
+            />
           ))}
         </div>
+
+        {transcript && (
+          <div className="group heard">
+            <button
+              type="button"
+              className="row heard__toggle"
+              aria-expanded={heardOpen}
+              aria-controls="heard-text"
+              onClick={() => setHeardOpen((o) => !o)}
+            >
+              <span className="row__body">
+                <span className="row__title">What Chorus heard</span>
+              </span>
+              <span className="row__chev heard__chev" data-open={heardOpen}>
+                <Icon name="chevronRight" size={18} strokeWidth={2.4} />
+              </span>
+            </button>
+            {heardOpen && (
+              <p className="heard__text" id="heard-text">
+                {transcript}
+              </p>
+            )}
+          </div>
+        )}
 
         {selected && selectedVisual && (
           <div className="group" role="status" aria-live="polite">
@@ -119,12 +188,6 @@ export function Results() {
                 <Icon name="speaker" size={18} />
                 Hear it said
               </button>
-              {audioUrl && selected.start != null && selected.end != null && (
-                <button type="button" className="btn btn--tinted btn--compact" onClick={() => playHeardSlice(selected)}>
-                  <Icon name="waveform" size={18} />
-                  Hear yourself
-                </button>
-              )}
             </div>
           </div>
         )}

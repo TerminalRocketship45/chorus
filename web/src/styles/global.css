@@ -1260,3 +1260,239 @@ button.row:active {
 .title-block + .chips {
   margin-top: 8px;
 }
+
+/* ---------- Typed topic, generated passage ---------- */
+
+.group__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.topicbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 4px 0;
+}
+
+.group__list + .topicbar::before,
+.row--pending + .topicbar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 0;
+  height: 0.5px;
+  background: var(--separator);
+}
+
+.topicbar__label {
+  flex: 1;
+  min-width: 0;
+}
+
+.topicbar .btn--compact {
+  flex: none;
+  white-space: nowrap;
+}
+
+/* ---------- Results: headline, feedback, replay ---------- */
+
+.summary--single {
+  grid-template-columns: 1fr;
+}
+
+.summary--headline .stat {
+  padding: 20px 12px 18px;
+}
+
+.stat__value--headline {
+  font-size: 3.5rem;
+  line-height: 1;
+}
+
+.feedback {
+  padding: 14px 16px;
+  font-size: 1.0625rem;
+  line-height: 1.45;
+}
+
+.feedback .skel + .skel {
+  margin-top: 10px;
+}
+
+.player {
+  position: sticky;
+  top: 52px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 16px 6px 8px;
+  border-radius: var(--radius-group);
+  background: var(--surface);
+  box-shadow: 0 1px 0 var(--separator), 0 6px 14px -10px rgba(0, 0, 0, 0.35);
+}
+
+.player__btn {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent-fill);
+  color: var(--on-accent);
+  transition: transform 0.12s var(--ease);
+}
+
+.player__btn:active {
+  transform: scale(0.94);
+}
+
+.player__scrub {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  margin: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.player__scrub::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--accent-fill) var(--fill, 0%), var(--separator-strong) var(--fill, 0%));
+}
+
+.player__scrub::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--separator-strong);
+}
+
+.player__scrub::-moz-range-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--accent-fill);
+}
+
+.player__scrub::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -7px;
+  border-radius: 50%;
+  background: #fff;
+  border: 0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.player__scrub::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  border: 0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.player__time {
+  flex: none;
+  font-size: 0.8125rem;
+  color: var(--label-2);
+}
+
+.word {
+  scroll-margin: 140px 0 120px;
+}
+
+/* The spoken word: a tint layered over whatever the display colouring is, plus a ring. */
+.word--current {
+  background-image: linear-gradient(var(--accent-tint-strong), var(--accent-tint-strong));
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.heard__toggle {
+  min-height: 48px;
+}
+
+.heard__chev {
+  transition: transform 0.2s var(--ease);
+}
+
+.heard__chev[data-open="true"] {
+  transform: rotate(90deg);
+}
+
+.heard__text {
+  padding: 0 16px 14px;
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  color: var(--label);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heard__chev,
+  .player__btn {
+    transition: none;
+  }
+}
+
+/* ---------- Microphone level ---------- */
+
+.meter-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.meter {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+}
+
+.meter__bar {
+  width: 5px;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--label-2);
+  transform: scaleY(0.16);
+  will-change: transform;
+}
+
+.meter__hint {
+  min-height: 1.25em;
+  font-size: 0.8125rem;
+  line-height: 1.25;
+  color: var(--label-2);
+  text-align: center;
+}
+
+.topicbar {
+  padding: 8px 8px 8px 12px;
+}
+
+.topicbar__field {
+  min-height: 44px;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.group__list + .topicbar::before,
+.row--pending + .topicbar::before {
+  left: 0;
+}
+
+/* While a replay is available the ring belongs to the spoken word; a tapped word keeps a quiet tint. */
+.reading[data-replay="true"] .word[aria-pressed="true"]:not(.word--current) {
+  box-shadow: none;
+  background-color: var(--accent-tint);
+}

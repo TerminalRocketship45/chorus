@@ -14,7 +14,8 @@ export type IconName =
   | "speaker"
   | "waveform"
   | "caretUp"
-  | "tag"
+  | "play"
+  | "pause"
   | "info"
   | "warning"
   | "chorusMark";
@@ -51,10 +52,11 @@ const PATHS: Record<IconName, ReactNode> = {
   ),
   waveform: <path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2" />,
   caretUp: <path d="M6 15l6-6 6 6" />,
-  tag: (
+  play: <path d="M8 5.5v13l10.5-6.5z" fill="currentColor" />,
+  pause: (
     <>
-      <path d="M4 12.2V5a1 1 0 0 1 1-1h7.2a1 1 0 0 1 .7.3l7 7a1 1 0 0 1 0 1.4l-6.2 6.2a1 1 0 0 1-1.4 0l-7-7a1 1 0 0 1-.3-.7z" />
-      <circle cx="8.5" cy="8.5" r="1.2" />
+      <path d="M8.5 5.5v13" strokeWidth="3.4" />
+      <path d="M15.5 5.5v13" strokeWidth="3.4" />
     </>
   ),
   info: (

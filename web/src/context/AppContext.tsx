@@ -1,16 +1,17 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import type { GradeBand } from "../types/api";
-import { clearReader, loadStoredReader, saveGradeBand, saveHomeLanguage, saveInterests, saveStudent } from "../lib/storage";
+import { loadTopic, saveTopic } from "../lib/generated";
+import { clearReader, loadStoredReader, saveGradeBand, saveHomeLanguage, saveStudent } from "../lib/storage";
 
 interface AppState {
   gradeBand: GradeBand | null;
   homeLanguage: string | null;
   studentId: number | null;
   studentName: string | null;
-  interests: string[];
+  topic: string;
   setGradeBand: (band: GradeBand) => void;
   setHomeLanguage: (code: string) => void;
-  setInterests: (codes: string[]) => void;
+  setTopic: (topic: string) => void;
   setStudent: (id: number, name: string) => void;
   /** Lets a different reader take over this device without the old one's info lingering. */
   switchReader: () => void;
@@ -24,7 +25,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [homeLanguage, setHomeLanguageState] = useState<string | null>(initial.homeLanguage);
   const [studentId, setStudentId] = useState<number | null>(initial.studentId);
   const [studentName, setStudentName] = useState<string | null>(initial.studentName);
-  const [interests, setInterestsState] = useState<string[]>(initial.interests);
+  const [topic, setTopicState] = useState<string>(loadTopic());
 
   const value = useMemo<AppState>(
     () => ({
@@ -32,7 +33,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       homeLanguage,
       studentId,
       studentName,
-      interests,
+      topic,
       setGradeBand: (band) => {
         saveGradeBand(band);
         setGradeBandState(band);
@@ -41,9 +42,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         saveHomeLanguage(code);
         setHomeLanguageState(code);
       },
-      setInterests: (codes) => {
-        saveInterests(codes);
-        setInterestsState(codes);
+      setTopic: (value) => {
+        saveTopic(value);
+        setTopicState(value);
       },
       setStudent: (id, name) => {
         saveStudent(id, name);
@@ -56,10 +57,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setHomeLanguageState(null);
         setStudentId(null);
         setStudentName(null);
-        setInterestsState([]);
+        setTopicState("");
       },
     }),
-    [gradeBand, homeLanguage, studentId, studentName, interests]
+    [gradeBand, homeLanguage, studentId, studentName, topic]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

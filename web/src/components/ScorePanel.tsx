@@ -6,26 +6,22 @@ interface ScorePanelProps {
   accentAdjusted: ReadingScore | null;
 }
 
-/** The result summary: two quiet grouped panels, not a dashboard. */
+/** Words correct per minute is the headline; accuracy sits below, raw and accent-adjusted side by side. */
 export function ScorePanel({ score, accentAdjusted }: ScorePanelProps) {
   return (
     <>
-      <div className="group summary" role="group" aria-label="Your reading in numbers">
+      <div className="group summary summary--single summary--headline" role="group" aria-label="Words correct per minute">
         <div className="stat">
-          <div className="stat__value num">{formatWcpm(score.wcpm)}</div>
+          <div className="stat__value stat__value--headline num">{formatWcpm(score.wcpm)}</div>
           <div className="stat__label">words correct per minute</div>
-        </div>
-        <div className="stat">
-          <div className="stat__value num">{formatAccuracyPct(score.accuracy)}</div>
-          <div className="stat__label">accuracy</div>
         </div>
       </div>
 
-      {accentAdjusted && (
-        <section className="section" aria-labelledby="two-ways-title">
-          <h2 className="section__title" id="two-ways-title" style={{ padding: "0 16px" }}>
-            Two ways to count accuracy
-          </h2>
+      <section className="section" aria-labelledby="accuracy-title">
+        <h2 className="section__title" id="accuracy-title" style={{ padding: "0 16px" }}>
+          {accentAdjusted ? "Two ways to count accuracy" : "Accuracy"}
+        </h2>
+        {accentAdjusted ? (
           <div className="group summary" role="group" aria-label="Accuracy with and without accent adjustment">
             <div className="stat">
               <div className="stat__value num">{formatAccuracyPct(score.accuracy)}</div>
@@ -36,8 +32,15 @@ export function ScorePanel({ score, accentAdjusted }: ScorePanelProps) {
               <div className="stat__label">Accent differences not counted</div>
             </div>
           </div>
-        </section>
-      )}
+        ) : (
+          <div className="group summary summary--single" role="group" aria-label="Accuracy">
+            <div className="stat">
+              <div className="stat__value num">{formatAccuracyPct(score.accuracy)}</div>
+              <div className="stat__label">of words read correctly</div>
+            </div>
+          </div>
+        )}
+      </section>
     </>
   );
 }

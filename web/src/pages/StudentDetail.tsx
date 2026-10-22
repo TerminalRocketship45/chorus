@@ -161,9 +161,6 @@ export function StudentDetail() {
         </>
       )}
 
-      {student.interests.length > 0 && (
-        <p className="footnote">Interests: {student.interests.join(", ")}</p>
-      )}
     </Screen>
   );
 }

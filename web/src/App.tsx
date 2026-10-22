@@ -1,10 +1,9 @@
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { PhoneFrame } from "./components/PhoneFrame";
 import { AppProvider } from "./context/AppContext";
 import { Welcome } from "./pages/Welcome";
 import { Onboarding } from "./pages/Onboarding";
 import { PassagePicker } from "./pages/PassagePicker";
-import { Interests } from "./pages/Interests";
 import { Read } from "./pages/Read";
 import { Results } from "./pages/Results";
 import { TeacherView } from "./pages/TeacherView";
@@ -21,7 +20,7 @@ export function App() {
           <Route path="/" element={<Welcome />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/passages" element={<PassagePicker />} />
-          <Route path="/interests" element={<Interests />} />
+          <Route path="/interests" element={<Navigate to="/passages" replace />} />
           <Route path="/read/:passageId" element={<Read />} />
           <Route path="/results" element={<Results />} />
           <Route path="/teacher" element={<TeacherView />} />

@@ -1,8 +1,9 @@
 import type {
   AnalyzeResponse,
+  FeedbackRequest,
+  FeedbackResponse,
   GeneratePassageRequest,
   GradeBand,
-  Interest,
   LanguageOption,
   Passage,
   PassageProgress,
@@ -49,10 +50,6 @@ export function getPassage(id: string): Promise<Passage> {
   return request<Passage>(`/passages/${encodeURIComponent(id)}`);
 }
 
-export function getInterests(): Promise<Interest[]> {
-  return request<Interest[]>("/interests");
-}
-
 /** Can take several seconds; may return a library passage (source "library"). */
 export function generatePassage(body: GeneratePassageRequest): Promise<Passage> {
   return request<Passage>("/passages/generate", {
@@ -68,7 +65,7 @@ export function getStudentPassages(id: number): Promise<PassageProgress[]> {
 
 export function updateStudent(
   id: number,
-  body: Partial<{ name: string; grade_band: GradeBand; home_language: string; interests: string[] }>
+  body: Partial<{ name: string; grade_band: GradeBand; home_language: string }>
 ): Promise<Student> {
   return request<Student>(`/students/${id}`, {
     method: "PATCH",
@@ -81,7 +78,6 @@ export function createStudent(body: {
   name: string;
   grade_band: GradeBand;
   home_language: string;
-  interests?: string[];
 }): Promise<Student> {
   return request<Student>("/students", {
     method: "POST",
@@ -113,4 +109,13 @@ export function analyze(params: AnalyzeParams): Promise<AnalyzeResponse> {
   if (params.studentId != null) form.append("student_id", String(params.studentId));
   if (params.homeLanguage) form.append("home_language", params.homeLanguage);
   return request<AnalyzeResponse>("/analyze", { method: "POST", body: form });
+}
+
+/** Requested after the results render; callers hide the section when this fails. */
+export function getFeedback(body: FeedbackRequest): Promise<FeedbackResponse> {
+  return request<FeedbackResponse>("/feedback", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }
