@@ -22,6 +22,8 @@ from chorus.types import WordResult, WordStatus
 
 from . import db
 from . import display as display_mod
+from . import generate as generate_mod
+from . import interests as interests_mod
 from . import languages as languages_mod
 from . import passages as passages_mod
 from .audio import AudioTooLong, UndecodableAudio, decode_to_wav
@@ -78,6 +80,54 @@ def _word_to_dict(w: WordResult) -> dict[str, Any]:
     }
 
 
+def _parse_interests(value: Any) -> list[str]:
+    try:
+        return interests_mod.normalize_codes(value)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+
+
+def _student_passages(student_id: int) -> list[dict[str, Any]]:
+    """Passages this student generated or read, newest first, with read marks."""
+    stats = db.passage_session_stats(student_id)
+    items: list[tuple[tuple[str, int], dict[str, Any]]] = []
+    seen: set[str] = set()
+    for row in db.list_generated_for_student(student_id):
+        pid = row["id"]
+        seen.add(pid)
+        st = stats.get(pid)
+        key = (max(row["created_at"], st["at"]) if st else row["created_at"],
+               st["last_session_id"] if st else int(pid[2:]))
+        items.append((key, _passage_entry(passages_mod.from_generated(row), st)))
+    for pid, st in stats.items():
+        if pid in seen:
+            continue
+        passage = passages_mod.get_passage(pid)
+        if passage is None:
+            continue
+        items.append(((st["at"], st["last_session_id"]), _passage_entry(passage, st)))
+    items.sort(key=lambda kv: kv[0], reverse=True)
+    return [entry for _, entry in items]
+
+
+def _passage_entry(passage: Any, st: dict[str, Any] | None) -> dict[str, Any]:
+    last = None
+    if st:
+        adj = st["accent_adjusted"]
+        last = {
+            "accuracy": st["score"]["accuracy"],
+            "accent_adjusted_accuracy": adj["accuracy"] if adj else None,
+            "wcpm": st["score"]["wcpm"],
+            "at": st["at"],
+        }
+    return {
+        "passage": asdict(passage),
+        "read": st is not None,
+        "attempts": st["attempts"] if st else 0,
+        "last_result": last,
+    }
+
+
 def _no_speech_heard(words: list[WordResult]) -> bool:
     """True if nothing recognisable was heard at all.
 
@@ -103,6 +153,10 @@ def _add_routes(app: FastAPI) -> None:
     async def get_languages() -> list[dict[str, str]]:
         return languages_mod.list_languages()
 
+    @app.get(f"{api_prefix}/interests")
+    async def get_interests() -> list[dict[str, str]]:
+        return interests_mod.list_interests()
+
     @app.get(f"{api_prefix}/passages")
     async def get_passages(band: str | None = None) -> list[dict[str, Any]]:
         try:
@@ -118,6 +172,31 @@ def _add_routes(app: FastAPI) -> None:
             raise HTTPException(404, f"unknown passage_id: {passage_id!r}")
         return asdict(p)
 
+    @app.post(f"{api_prefix}/passages/generate", status_code=201)
+    async def generate_passage(body: dict[str, Any]) -> dict[str, Any]:
+        band = body.get("band")
+        if band not in passages_mod.BANDS:
+            raise HTTPException(
+                400, f"band must be one of {sorted(passages_mod.BANDS)}"
+            )
+        interests = _parse_interests(body.get("interests", []))
+        student_id = body.get("student_id")
+        if student_id is not None:
+            if isinstance(student_id, bool) or not isinstance(student_id, int):
+                raise HTTPException(400, f"bad student_id: {student_id!r}")
+            if db.get_student(student_id) is None:
+                raise HTTPException(400, f"unknown student_id: {student_id}")
+        exclude_ids = body.get("exclude_ids", [])
+        if exclude_ids is None:
+            exclude_ids = []
+        if not isinstance(exclude_ids, list) or not all(isinstance(i, str) for i in exclude_ids):
+            raise HTTPException(400, "exclude_ids must be a list of passage ids")
+        # Runs in a worker thread, outside the analysis gate: a slow model call
+        # must neither block the event loop nor hold up (or wait behind) analysis.
+        return await asyncio.to_thread(
+            generate_mod.generate_passage, band, interests, student_id, exclude_ids
+        )
+
     @app.post(f"{api_prefix}/students", status_code=201)
     async def create_student(body: dict[str, Any]) -> dict[str, Any]:
         name = body.get("name")
@@ -131,7 +210,41 @@ def _add_routes(app: FastAPI) -> None:
             )
         if home_language is not None and home_language not in languages_mod.known_codes():
             raise HTTPException(400, f"unknown home_language: {home_language!r}")
-        return db.create_student(name=name, grade_band=grade_band, home_language=home_language)
+        interests = _parse_interests(body.get("interests", []))
+        return db.create_student(
+            name=name, grade_band=grade_band, home_language=home_language, interests=interests
+        )
+
+    @app.patch(f"{api_prefix}/students/{{student_id}}")
+    async def update_student(student_id: int, body: dict[str, Any]) -> dict[str, Any]:
+        if db.get_student(student_id) is None:
+            raise HTTPException(400, f"unknown student_id: {student_id}")
+        fields: dict[str, Any] = {}
+        if "name" in body:
+            name = body["name"]
+            if not isinstance(name, str) or not name.strip():
+                raise HTTPException(400, "name must be a non-empty string")
+            fields["name"] = name
+        if "grade_band" in body:
+            if body["grade_band"] not in passages_mod.BANDS:
+                raise HTTPException(
+                    400, f"grade_band must be one of {sorted(passages_mod.BANDS)}"
+                )
+            fields["grade_band"] = body["grade_band"]
+        if "home_language" in body:
+            hl = body["home_language"]
+            if hl is not None and hl not in languages_mod.known_codes():
+                raise HTTPException(400, f"unknown home_language: {hl!r}")
+            fields["home_language"] = hl
+        if "interests" in body:
+            fields["interests"] = _parse_interests(body["interests"])
+        return db.update_student(student_id, fields)
+
+    @app.get(f"{api_prefix}/students/{{student_id}}/passages")
+    async def get_student_passages(student_id: int) -> list[dict[str, Any]]:
+        if db.get_student(student_id) is None:
+            raise HTTPException(400, f"unknown student_id: {student_id}")
+        return _student_passages(student_id)
 
     @app.get(f"{api_prefix}/students")
     async def list_students() -> list[dict[str, Any]]:

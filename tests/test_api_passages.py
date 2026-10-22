@@ -18,9 +18,9 @@ def client():
         yield c
 
 
-def test_six_passages_per_band():
-    assert len([p for p in passages.load_passages() if p.band == "elementary"]) == 6
-    assert len([p for p in passages.load_passages() if p.band == "secondary"]) == 6
+def test_passage_counts_per_band():
+    assert len([p for p in passages.load_passages() if p.band == "elementary"]) == 11
+    assert len([p for p in passages.load_passages() if p.band == "secondary"]) == 12
 
 
 def test_ids_follow_band_prefix():
@@ -78,9 +78,9 @@ def test_route_returns_both_bands_by_default(client):
     r = client.get("/api/passages")
     assert r.status_code == 200
     body = r.json()
-    assert len(body) == 12
+    assert len(body) == 23
     assert {p["id"] for p in body if p["band"] == "elementary"} == {
-        f"el-0{i}" for i in range(1, 7)
+        f"el-{i:02d}" for i in range(1, 12)
     }
 
 
@@ -88,7 +88,7 @@ def test_route_filters_by_band(client):
     r = client.get("/api/passages?band=secondary")
     assert r.status_code == 200
     body = r.json()
-    assert len(body) == 6
+    assert len(body) == 12
     assert all(p["band"] == "secondary" for p in body)
 
 

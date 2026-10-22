@@ -4,7 +4,7 @@
     "title": "The First Snow",
     "band": "elementary",
     "level": 1,
-    "topic": "snow",
+    "topic": "nature",
     "text": "Snow fell all night outside Mia's window. In the morning the yard looked white and soft. Mia pulled on her boots and her warm red mittens. She ran outside and made a big snowball. Her little brother built a short snowman by the porch. They laughed and waved at their neighbor."
   },
   {
@@ -12,7 +12,7 @@
     "title": "Library Day",
     "band": "elementary",
     "level": 1,
-    "topic": "library visit",
+    "topic": "science",
     "text": "Every Saturday Grandma takes Noah to the public library. He likes to find books about dinosaurs and outer space. The librarian waves and says hello to them by name. Noah picks three books and carries them to the checkout desk. He cannot wait to read the biggest one tonight."
   },
   {
@@ -20,7 +20,7 @@
     "title": "The Winning Goal",
     "band": "elementary",
     "level": 2,
-    "topic": "soccer game",
+    "topic": "sports",
     "text": "The soccer field behind the school was wet from the morning rain. Jordan tied her cleats tight and jogged out to join her team. During the game she passed the ball to her best friend near the goal. Her friend kicked it hard and the whole team cheered loudly. After the final whistle everyone shared orange slices and talked about the winning goal."
   },
   {
@@ -28,7 +28,7 @@
     "title": "Sunday Supper",
     "band": "elementary",
     "level": 2,
-    "topic": "family meal",
+    "topic": "food",
     "text": "On Sunday evenings the whole family gathers around the kitchen table. Dad stirs a pot of vegetable soup while Grandpa sets out the bowls. Everyone takes turns sharing something good that happened during the week. Little sister always tells the silliest story and makes everyone laugh. After dinner they wash the dishes together and play a quiet board game."
   },
   {
@@ -36,7 +36,7 @@
     "title": "The Community Garden",
     "band": "elementary",
     "level": 3,
-    "topic": "garden",
+    "topic": "nature",
     "text": "Behind their apartment building, Ahmed and the neighborhood kids planted a community garden last spring. Each family chose a small square of dirt to tend. Amara waters her tomatoes every morning before the sun gets too hot. Her neighbor grows tall sunflowers that lean toward the fence for light. By late summer the garden is full of ripe vegetables, buzzing bees, and neighbors trading recipes across the fence."
   },
   {
@@ -44,7 +44,47 @@
     "title": "A Week at the Lake",
     "band": "elementary",
     "level": 3,
-    "topic": "lake",
+    "topic": "adventure",
     "text": "Every July, Mia's family drives north to a quiet lake near the Canadian border for a week of camping. Her dad teaches her how to paddle the canoe without splashing too much water. In the evening they build a small campfire and roast marshmallows until the stars come out. Mia falls asleep listening to loons calling across the still water. On the last morning she watches fish jump near the dock before they pack up the car and head home."
+  },
+  {
+    "id": "el-07",
+    "title": "The Lost Puppy",
+    "band": "elementary",
+    "level": 1,
+    "topic": "animals",
+    "text": "A small brown puppy sat alone by the park gate. His ears drooped and his tail hung low. A girl named Rosa knelt down and gave him a gentle pat. She read the tag on his red collar and called the number with her mother. Soon a man came running across the grass. The puppy jumped into his arms and wagged his tail all the way home."
+  },
+  {
+    "id": "el-08",
+    "title": "Counting the Stars",
+    "band": "elementary",
+    "level": 2,
+    "topic": "space",
+    "text": "On a clear night Omar and his aunt lay on a blanket in the backyard. The sky was dark and full of tiny lights. Aunt Hana pointed to a bright planet near the moon. Omar held up his hands and tried to count the stars, but there were too many. He yawned and smiled. Someday, he said, he wanted to ride a rocket and see them up close."
+  },
+  {
+    "id": "el-09",
+    "title": "The Drum Circle",
+    "band": "elementary",
+    "level": 2,
+    "topic": "music",
+    "text": "Every Friday the music room fills with the sound of drums. Mr. Lee hands out big drums and small drums to each child. First the class taps a slow beat together. Then they clap faster and faster until everyone laughs. Sara likes the deep drum best because she can feel it hum in her hands. At the end, the whole room is quiet and happy."
+  },
+  {
+    "id": "el-10",
+    "title": "Painting the Fence",
+    "band": "elementary",
+    "level": 1,
+    "topic": "art",
+    "text": "Lena found three jars of paint in the garage. One was yellow, one was blue, and one was green. She asked her father if she could paint the old fence. He said yes and gave her a wide brush. Lena painted big sunflowers first and then a bright blue bird. When the paint dried, neighbors stopped to look. A little boy asked if he could add a snail."
+  },
+  {
+    "id": "el-11",
+    "title": "Grandpa's Old Photograph",
+    "band": "elementary",
+    "level": 3,
+    "topic": "history",
+    "text": "In a dusty box, Dev found an old photograph of a train station. The people in the picture wore long coats and tall hats. Grandpa said the photo was taken a hundred years ago, when his own grandmother was a girl. She had traveled to a new country on one of those trains. Dev looked closely at her small, serious face. He felt proud to be part of her story."
   }
 ]

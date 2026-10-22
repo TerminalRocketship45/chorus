@@ -32,6 +32,31 @@ route in `deploy/hf/` and the repo `Dockerfile` are unchanged.
    page embedded on huggingface.co/spaces/... blocks the mic, open the direct
    URL `https://<user>-<space>.hf.space` instead.
 
+## AI-written passages (optional)
+
+`POST /api/passages/generate` asks a language model for a passage about the reader's
+interests, through Hugging Face Inference Providers (`huggingface_hub.InferenceClient`,
+pinned to 0.36.2 because gradio 5.50.0 needs huggingface-hub below 2.0).
+
+- **Secret `HF_TOKEN`** (Settings > Variables and secrets > New secret). A read token is
+  enough: inference calls need no write access. A fine-grained token must have the
+  "Make calls to Inference Providers" permission. Use a separate token from the Write
+  token used by `push_space.sh` (which is only a shell variable on your machine), and
+  never put it in a Variable (variables are public). Restart the Space after adding it.
+- **Variable `CHORUS_PASSAGE_MODEL`** (optional). Default
+  `meta-llama/Llama-3.1-8B-Instruct`, which several Inference Providers serve. Set any
+  other chat model id that Providers serve (for example `Qwen/Qwen3-8B`); check its
+  model page lists a live provider.
+- **Limits**: free Hugging Face accounts get only a small monthly inference credit,
+  PRO accounts more (check the current amount on your billing page). Each passage costs
+  a few hundred tokens, and a request can retry up to three times. When the token is
+  missing, the credit is spent, the model is unavailable or the output fails the checks
+  (length, digits, hyphens, non-ASCII, unsafe words), the API returns a **library
+  passage** instead (`"source": "library"`, matching band and interest where possible),
+  so reading always works without the secret.
+- Generated passages are stored in the same ephemeral SQLite DB (`/tmp/chorus.db`) and
+  disappear when the Space restarts.
+
 ## ZeroGPU notes
 
 - Inference stays on CPU (`CHORUS_ASR_DEVICE=cpu`); no GPU is needed or used.

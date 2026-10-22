@@ -14,6 +14,8 @@ from pathlib import Path
 
 from chorus.miscue import normalize
 
+from . import db
+
 _DATA_DIR = Path(__file__).parent / "passages"
 BANDS = frozenset({"elementary", "secondary"})
 
@@ -27,6 +29,7 @@ class Passage:
     topic: str
     text: str
     word_count: int
+    source: str = "library"
 
 
 def _load_file(path: Path) -> list[Passage]:
@@ -68,8 +71,25 @@ def list_passages(band: str | None = None) -> list[Passage]:
     return [p for p in passages if p.band == band]
 
 
+def from_generated(row: dict) -> Passage:
+    """Build a Passage from a generated_passages row dict (see db.py)."""
+    return Passage(
+        id=row["id"],
+        title=row["title"],
+        band=row["band"],
+        level=row["level"],
+        topic=row["topic"],
+        text=row["text"],
+        word_count=len(normalize(row["text"])),
+        source="ai",
+    )
+
+
 def get_passage(passage_id: str) -> Passage | None:
-    """One passage by id, or None if it does not exist."""
+    """One passage by id (library, or "g-<n>" from the database), or None."""
+    if passage_id.startswith("g-"):
+        row = db.get_generated_passage(passage_id)
+        return from_generated(row) if row else None
     for p in load_passages():
         if p.id == passage_id:
             return p

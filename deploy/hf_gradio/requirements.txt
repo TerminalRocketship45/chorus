@@ -15,3 +15,5 @@ fastapi==0.139.2
 uvicorn[standard]==0.51.0
 python-multipart==0.0.32
 av==18.0.0
+# AI passages (InferenceClient.chat_completion). gradio 5.50.0 requires huggingface-hub<2.0,>=0.33.5.
+huggingface_hub==0.36.2

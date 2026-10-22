@@ -13,4 +13,5 @@ fastapi==0.139.2
 uvicorn[standard]==0.51.0
 python-multipart==0.0.32
 av==18.0.0
+huggingface_hub==0.36.2  # InferenceClient for AI passages; gradio 5.50.0 needs <2.0
 httpx==0.28.1  # tests only (FastAPI TestClient)
