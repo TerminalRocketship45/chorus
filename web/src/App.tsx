@@ -1,4 +1,5 @@
 import { Route, Routes } from "react-router-dom";
+import { PhoneFrame } from "./components/PhoneFrame";
 import { AppProvider } from "./context/AppContext";
 import { Welcome } from "./pages/Welcome";
 import { Onboarding } from "./pages/Onboarding";
@@ -14,6 +15,7 @@ import { NotFound } from "./pages/NotFound";
 export function App() {
   return (
     <AppProvider>
+      <PhoneFrame>
       <div className="app">
         <Routes>
           <Route path="/" element={<Welcome />} />
@@ -28,6 +30,7 @@ export function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </div>
+      </PhoneFrame>
     </AppProvider>
   );
 }

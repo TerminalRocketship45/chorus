@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { GradeBand, Interest, LanguageOption } from "../types/api";
-import { createStudent, getInterests, getLanguages, ApiRequestError } from "../lib/api";
+import type { GradeBand, LanguageOption } from "../types/api";
+import { createStudent, getLanguages, ApiRequestError } from "../lib/api";
 import { useAppState } from "../context/AppContext";
-import { NATIVE_NAMES } from "../content/languages";
+import { FALLBACK_LANGUAGES, NATIVE_NAMES } from "../content/languages";
+import { INTERESTS } from "../content/interests";
 import { Screen } from "../components/Screen";
 import { Icon } from "../components/Icon";
 
@@ -22,48 +23,25 @@ export function Onboarding() {
   const app = useAppState();
   const [step, setStep] = useState<Step>("grade");
   const [gradeBand, setGradeBandLocal] = useState<GradeBand | null>(app.gradeBand);
-  const [languages, setLanguages] = useState<LanguageOption[] | null>(null);
-  const [languageError, setLanguageError] = useState<string | null>(null);
+  const [languages, setLanguages] = useState<LanguageOption[]>(FALLBACK_LANGUAGES);
   const [homeLanguage, setHomeLanguageLocal] = useState<string | null>(app.homeLanguage);
-  const [interestList, setInterestList] = useState<Interest[] | null>(null);
-  const [interestError, setInterestError] = useState<string | null>(null);
   const [interests, setInterestsLocal] = useState<string[]>(app.interests);
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [retry, setRetry] = useState(0);
 
+  // Use the API's list when it arrives; the bundled list is already on screen.
   useEffect(() => {
-    if (step !== "language" || languages) return;
     let cancelled = false;
-    setLanguageError(null);
     getLanguages()
       .then((list) => {
-        if (!cancelled) setLanguages(list);
+        if (!cancelled && list.length > 0) setLanguages(list);
       })
-      .catch(() => {
-        if (!cancelled) setLanguageError("Chorus couldn't load the language list. Please try again.");
-      });
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [step, languages, retry]);
-
-  useEffect(() => {
-    if (step !== "interests" || interestList) return;
-    let cancelled = false;
-    setInterestError(null);
-    getInterests()
-      .then((list) => {
-        if (!cancelled) setInterestList(list);
-      })
-      .catch(() => {
-        if (!cancelled) setInterestError("Chorus couldn't load the interests list. Please try again.");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [step, interestList, retry]);
+  }, []);
 
   function goBack() {
     const i = ORDER.indexOf(step);
@@ -214,23 +192,7 @@ export function Onboarding() {
             </h1>
             <p className="lede">This helps Chorus tell an accent apart from a reading mistake.</p>
           </div>
-          {languageError && (
-            <div className="notice notice--error" role="alert">
-              <Icon name="warning" size={20} />
-              <div className="notice__body">
-                <span>{languageError}</span>
-                <button type="button" className="btn btn--plain" style={{ minHeight: 32, padding: 0 }} onClick={() => setRetry((n) => n + 1)}>
-                  Try again
-                </button>
-              </div>
-            </div>
-          )}
-          {!languages && !languageError && (
-            <p className="footnote" role="status">
-              Loading languages…
-            </p>
-          )}
-          {languages && (
+          {(
             <div className="group" role="radiogroup" aria-labelledby="language-heading">
               {languages.map((lang) => {
                 const selected = homeLanguage === lang.code;
@@ -267,40 +229,21 @@ export function Onboarding() {
             <h1 className="large-title large-title--medium" id="interests-heading">
               What do you like to read about?
             </h1>
-            <p className="lede">Pick one or more. Chorus writes passages about the things you choose.</p>
           </div>
-          {interestError && (
-            <div className="notice notice--error" role="alert">
-              <Icon name="warning" size={20} />
-              <div className="notice__body">
-                <span>{interestError}</span>
-                <button type="button" className="btn btn--plain" style={{ minHeight: 32, padding: 0 }} onClick={() => setRetry((n) => n + 1)}>
-                  Try again
-                </button>
-              </div>
-            </div>
-          )}
-          {!interestList && !interestError && (
-            <p className="footnote" role="status">
-              Loading…
-            </p>
-          )}
-          {interestList && (
-            <div className="chips" role="group" aria-labelledby="interests-heading">
-              {interestList.map((item) => (
-                <button
-                  key={item.code}
-                  type="button"
-                  className="chip"
-                  aria-pressed={interests.includes(item.code)}
-                  onClick={() => toggleInterest(item.code)}
-                >
-                  {interests.includes(item.code) && <Icon name="check" size={16} strokeWidth={3} />}
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="chips" role="group" aria-labelledby="interests-heading">
+            {INTERESTS.map((item) => (
+              <button
+                key={item.code}
+                type="button"
+                className="chip"
+                aria-pressed={interests.includes(item.code)}
+                onClick={() => toggleInterest(item.code)}
+              >
+                {interests.includes(item.code) && <Icon name="check" size={16} strokeWidth={3} />}
+                {item.label}
+              </button>
+            ))}
+          </div>
         </section>
       )}
 

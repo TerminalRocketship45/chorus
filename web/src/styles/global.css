@@ -580,7 +580,7 @@ button.row:active {
   bottom: 0;
   z-index: 15;
   margin-top: auto;
-  padding: 12px var(--gutter) calc(12px + env(safe-area-inset-bottom));
+  padding: 12px var(--gutter) calc(12px + max(env(safe-area-inset-bottom), var(--safe-bottom, 0px)));
   background: var(--bar);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
@@ -615,7 +615,7 @@ button.row:active {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: calc(48px + env(safe-area-inset-top)) var(--gutter) calc(20px + env(safe-area-inset-bottom));
+  padding: calc(48px + env(safe-area-inset-top)) var(--gutter) calc(20px + max(env(safe-area-inset-bottom), var(--safe-bottom, 0px)));
   gap: 28px;
   animation: screen-in 0.22s var(--ease);
 }
@@ -1108,4 +1108,155 @@ button.row:active {
 .large-title--medium {
   font-size: 1.75rem;
   line-height: 1.18;
+}
+
+/* ---------- Phone frame (desktop only) ----------
+   On wide, tall viewports the whole app renders inside a modern-phone-shaped
+   frame. Below the breakpoint the wrappers are inert and the app is full-bleed. */
+
+.device__chrome {
+  display: none;
+}
+
+@media (min-width: 600px) and (min-height: 700px) {
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    background: var(--backdrop);
+  }
+
+  #root {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .stage {
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .device {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 410px; /* 390 screen + 2 x 10 bezel */
+    height: 864px;
+    padding: 10px;
+    border-radius: 57px;
+    background: var(--bezel);
+    box-shadow: 0 0 0 1px var(--bezel-ring), 0 24px 48px -12px rgba(0, 0, 0, 0.22);
+    margin: -432px 0 0 -205px;
+    transform: scale(var(--device-scale, 1));
+    transform-origin: center;
+  }
+
+  .device__screen {
+    position: relative;
+    width: 390px;
+    height: 844px;
+    border-radius: 47px;
+    overflow: hidden;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    isolation: isolate;
+    --safe-bottom: 22px;
+  }
+
+  .device__chrome {
+    display: flex;
+  }
+
+  .statusbar {
+    flex: none;
+    height: 54px;
+    padding: 0 30px 0 38px;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg);
+    color: var(--label);
+    position: relative;
+    z-index: 30;
+    user-select: none;
+  }
+
+  .statusbar__time {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .statusbar__icons {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .island {
+    position: absolute;
+    top: 11px;
+    left: 50%;
+    width: 122px;
+    height: 35px;
+    margin-left: -61px;
+    border-radius: 20px;
+    background: #000;
+    z-index: 40;
+    pointer-events: none;
+  }
+
+  .home-indicator {
+    position: absolute;
+    left: 50%;
+    bottom: 8px;
+    width: 134px;
+    height: 5px;
+    margin-left: -67px;
+    border-radius: 3px;
+    background: var(--label);
+    z-index: 40;
+    pointer-events: none;
+  }
+
+  .device__scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* Fixed descendants (none today) resolve against the screen, not the window. */
+    transform: translateZ(0);
+    scrollbar-width: none;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .device__scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  .device__scroll > .app {
+    min-height: 100%;
+    flex: 1 0 auto;
+    max-width: none;
+    box-shadow: none;
+  }
+
+  .device__scroll .screen {
+    padding-bottom: 56px;
+  }
+
+  .device__scroll .screen--with-bar {
+    padding-bottom: 24px;
+  }
+}
+
+.title-block + .chips {
+  margin-top: 8px;
 }

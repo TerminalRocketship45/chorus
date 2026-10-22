@@ -34,16 +34,24 @@ export function Screen({ title, large = false, back, trailing, bottom, children 
     document.title = `${title} · Chorus`;
   }, [title]);
 
+  // The page scrolls on the window on phones and inside the phone frame's
+  // screen on desktop; follow whichever is active.
+  const headerRef = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 2);
-    const onScrollTitle = () => setPastTitle(window.scrollY > 60);
-    onScrollTitle();
-    window.addEventListener("scroll", onScrollTitle, { passive: true });
+    const root = headerRef.current?.closest<HTMLElement>("[data-scroll-root]") ?? null;
+    const offset = () => Math.max(window.scrollY, root?.scrollTop ?? 0);
+    const onScroll = () => {
+      const y = offset();
+      setScrolled(y > 2);
+      setPastTitle(y > 60);
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
+    root?.addEventListener("scroll", onScroll, { passive: true });
     return () => {
       window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("scroll", onScrollTitle);
+      root?.removeEventListener("scroll", onScroll);
     };
   }, []);
 
@@ -54,7 +62,10 @@ export function Screen({ title, large = false, back, trailing, bottom, children 
       setTitleInBar(false);
       return;
     }
+    const scroller = el.closest<HTMLElement>("[data-scroll-root]");
+    const framed = scroller !== null && getComputedStyle(scroller).overflowY === "auto";
     const observer = new IntersectionObserver(([entry]) => setTitleInBar(!entry.isIntersecting), {
+      root: framed ? scroller : null,
       rootMargin: "-48px 0px 0px 0px",
     });
     observer.observe(el);
@@ -70,7 +81,7 @@ export function Screen({ title, large = false, back, trailing, bottom, children 
 
   return (
     <>
-      <header className="navbar" data-scrolled={scrolled}>
+      <header className="navbar" data-scrolled={scrolled} ref={headerRef}>
         <div className="navbar__inner">
           <div className="navbar__lead">
             {back &&

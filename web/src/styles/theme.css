@@ -10,6 +10,9 @@
   --surface: #ffffff;       /* inset group / raised rows */
   --surface-2: #f2f2f7;     /* fills inside a group (fields, chips at rest) */
   --outer: #e3e3e8;         /* beside the column on wide screens */
+  --backdrop: #dcdce1;      /* behind the phone frame on desktop */
+  --bezel: #1a1a1c;
+  --bezel-ring: rgba(0, 0, 0, 0.28);
   --bar: rgba(249, 249, 251, 0.86);
   --separator: #d8d8dd;     /* hairline */
   --separator-strong: #c1c1c7;
@@ -66,6 +69,9 @@
     --surface: #1c1c1e;
     --surface-2: #2c2c2e;
     --outer: #000000;
+    --backdrop: #161618;
+    --bezel: #000000;
+    --bezel-ring: #3a3a3c;
     --bar: rgba(22, 22, 24, 0.86);
     --separator: #38383a;
     --separator-strong: #48484a;
@@ -102,6 +108,9 @@
   --surface: #1c1c1e;
   --surface-2: #2c2c2e;
   --outer: #000000;
+  --backdrop: #161618;
+  --bezel: #000000;
+  --bezel-ring: #3a3a3c;
   --bar: rgba(22, 22, 24, 0.86);
   --separator: #38383a;
   --separator-strong: #48484a;
