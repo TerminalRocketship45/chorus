@@ -31,7 +31,7 @@ GOOD_SE = " ".join(
 )
 
 
-EXTRA = ("requested_topic", "topic_accepted")
+EXTRA = ("requested_topic", "topic_accepted", "fallback_reason")
 
 
 def reply(title="Night Sky", text=GOOD_EL, fenced=False):
@@ -79,7 +79,7 @@ def test_good_passages_validate():
 @pytest.mark.parametrize(
     "bad,needle",
     [
-        (GOOD_EL + " It was 7 o clock.", "digits"),
+        (GOOD_EL + " It was 7:30 or 2599.", "digits"),
         (GOOD_EL + " A well-known star.", "hyphen"),
         (GOOD_EL + " The café was open.", "non-ASCII"),
     ],
@@ -92,8 +92,12 @@ def test_rejects_digits_hyphens_non_ascii(bad, needle):
 def test_length_bounds():
     assert generate.validate_passage("Too short.", "elementary")
     assert generate.validate_passage(GOOD_EL, "secondary")  # elementary text, secondary band
-    assert generate.validate_passage(" ".join(["word"] * 81), "elementary")
-    assert not generate.validate_passage(" ".join(["word"] * 80), "elementary")
+    assert generate.validate_passage(" ".join(["word"] * 101), "elementary")
+    assert not generate.validate_passage(" ".join(["word"] * 100), "elementary")
+    assert generate.validate_passage(" ".join(["word"] * 34), "elementary")
+    assert not generate.validate_passage(" ".join(["word"] * 35), "elementary")
+    assert not generate.validate_passage(" ".join(["word"] * 160), "secondary")
+    assert generate.validate_passage(" ".join(["word"] * 69), "secondary")
 
 
 def test_title_and_blocklist():
@@ -131,7 +135,7 @@ def test_library_covers_every_interest_in_both_bands():
 def test_library_ids_follow_prefix_and_are_unique():
     ids = [p.id for p in passages.load_passages()]
     assert len(ids) == len(set(ids))
-    assert all(i.startswith(("el-", "se-")) for i in ids)
+    assert all(i.startswith(("el-", "se-", "cac-")) for i in ids)
 
 
 # ---------------------------------------------------------------- generation
@@ -163,11 +167,11 @@ def test_generate_retries_then_succeeds(client, monkeypatch):
 
 
 def test_generate_three_failures_fall_back_to_library(client, monkeypatch):
-    fake = use_fake(monkeypatch, [reply(text=GOOD_EL + " It was 7 o clock.")])
+    fake = use_fake(monkeypatch, [reply(text=GOOD_EL + " It was 2599 years.")])
     r = client.post("/api/passages/generate", json={"band": "elementary", "interests": ["music"]})
     assert r.status_code == 201
     body = r.json()
-    assert fake.calls == 3
+    assert fake.calls == generate.MAX_CALLS
     assert body["source"] == "library" and body["id"].startswith("el-")
     assert body["topic"] == "music"
 

@@ -155,7 +155,7 @@ library ids. `GET /api/passages` (the list) returns library passages only.
 ### `POST /api/passages/generate`
 Body: `{"band": "elementary", "interests": ["space"], "student_id": 1 | null,
 "exclude_ids": ["g-3", "el-02"]}`. Writes a new passage for that grade band about one of the
-interests, checks it (word-count range for the band; only words, no digits, hyphens or non-ASCII;
+interests, checks it (word-count range for the band, 35 to 100 elementary and 70 to 160 secondary after repair; only words, no digits, hyphens or non-ASCII;
 age-appropriate), and returns `201` with the passage. When the model is unavailable, out of
 credit, or fails the checks after a few attempts, it returns a library passage instead (with
 `"source": "library"`) that matches the band and, if possible, an interest and is not in
@@ -209,3 +209,29 @@ peaks below -40 dBFS ("Your recording was very quiet..."), or when fewer than 15
 reached (not the whole passage, so a short honest reading of the start of a long passage passes)
 were heard as correct or close, or when fewer than 3 words in all were heard as correct or close ("Chorus couldn't hear enough reading. Check the microphone,
 move closer, and try again."). Show `detail` as is; there is no results page for these.
+
+## Generation diagnostics (revision 2026-10-22)
+
+`POST /api/passages/generate` responses add `"fallback_reason": null` when an AI passage was
+written, otherwise one of `"no_token"`, `"topic_rejected"`, `"model_declined"`,
+`"model_unavailable"` (auth, credit, model not served, timeout), `"invalid_output"` (every draft
+failed the checks after repair). The server also logs the reason and the underlying error (never
+the token). The client shows one short, neutral line when it falls back.
+
+The library always lists "The Congressional App Challenge" first in each grade band: id `cac-01`
+in elementary and `cac-02` in secondary (the same title, different ids so ids stay unique; topic
+`science`; placeholder text until the team's script arrives). They are never picked as a random
+fallback.
+
+Before checking, drafts are repaired where that is safe: markdown marks and surrounding quotes
+removed, curly quotes and dashes made plain, hyphens turned into spaces, whole numbers 0 to 999
+written as words, accents folded to ASCII (cafe), a too long or unfinished draft trimmed at the
+last sentence end inside the range. Other digit forms, non-Latin letters and anything on the
+safety blocklist are still rejected. Replies may be JSON (fenced, in prose, single quoted,
+trailing commas) or a short title line plus a paragraph.
+
+Models are tried in order from env `CHORUS_PASSAGE_MODEL` (comma separated; default
+`meta-llama/Llama-3.1-8B-Instruct`, `Qwen/Qwen2.5-7B-Instruct`,
+`meta-llama/Llama-3.2-3B-Instruct`), with `provider="auto"` and a 30 s timeout. A 401, 402 or 403
+stops at once; any other call error moves to the next model. To see exactly what fails, run
+`python scripts/check_generation.py --topic "machine learning" --band secondary` with HF_TOKEN set.

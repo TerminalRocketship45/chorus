@@ -1,5 +1,13 @@
 [
   {
+    "id": "cac-02",
+    "title": "The Congressional App Challenge",
+    "band": "secondary",
+    "level": 1,
+    "topic": "science",
+    "text": "We are a team of students building a reading app for the Congressional App Challenge in Minnesota's Fourth District. The app listens while a student reads a passage aloud, follows each word, and shows which ones were difficult. Many of us speak another language at home, and we know that an accent is not a mistake. So our app does not count a first language accent against the reader. It only marks words that were skipped or misread. We want practice to feel encouraging instead of embarrassing, and we hope every student who tries it finishes feeling more confident than when they started."
+  },
+  {
     "id": "se-01",
     "title": "The Corner Bakery",
     "band": "secondary",

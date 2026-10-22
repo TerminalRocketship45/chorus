@@ -19,14 +19,14 @@ def client():
 
 
 def test_passage_counts_per_band():
-    assert len([p for p in passages.load_passages() if p.band == "elementary"]) == 11
-    assert len([p for p in passages.load_passages() if p.band == "secondary"]) == 12
+    assert len([p for p in passages.load_passages() if p.band == "elementary"]) == 12
+    assert len([p for p in passages.load_passages() if p.band == "secondary"]) == 13
 
 
 def test_ids_follow_band_prefix():
     for p in passages.load_passages():
         prefix = "el-" if p.band == "elementary" else "se-"
-        assert p.id.startswith(prefix), p.id
+        assert p.id.startswith((prefix, "cac-")), p.id
 
 
 def test_elementary_word_counts_in_range():
@@ -78,17 +78,17 @@ def test_route_returns_both_bands_by_default(client):
     r = client.get("/api/passages")
     assert r.status_code == 200
     body = r.json()
-    assert len(body) == 23
+    assert len(body) == 25
     assert {p["id"] for p in body if p["band"] == "elementary"} == {
         f"el-{i:02d}" for i in range(1, 12)
-    }
+    } | {"cac-01"}
 
 
 def test_route_filters_by_band(client):
     r = client.get("/api/passages?band=secondary")
     assert r.status_code == 200
     body = r.json()
-    assert len(body) == 12
+    assert len(body) == 13
     assert all(p["band"] == "secondary" for p in body)
 
 
