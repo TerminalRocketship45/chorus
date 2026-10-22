@@ -14,9 +14,10 @@
 5. **First cold start**: with `CHORUS_WARMUP=1` the app loads Whisper and the aligner
    before serving, so the Space shows "Starting" for a while, then the page loads.
    The first analysis after that is still slower than later ones.
-6. **Switch to small.en**: Space Settings > Variables and secrets > New variable
-   `CHORUS_ASR_MODEL` = `small.en`, then Restart the Space. (small.en is already
-   cached in the image; no rebuild needed.) Watch RAM and latency on 2 vCPU.
+6. **Model and speed**: the Dockerfile defaults are small.en, `CHORUS_BEAM_SIZE=5`,
+   `CHORUS_SAME_SOUND=1`, `CHORUS_DIGIT_CONTEXT=1` (most accurate measured). If analysis is
+   too slow, set Variables `CHORUS_ASR_MODEL=base.en` and/or `CHORUS_BEAM_SIZE=1` and
+   Restart (both models are cached in the image). Watch RAM and latency on 2 vCPU.
 7. **Data is ephemeral**: the SQLite DB lives in `/tmp/chorus.db`, so teacher-view
    data resets whenever the Space restarts or sleeps (free Spaces sleep after about
    48 h idle). Audio is never stored.

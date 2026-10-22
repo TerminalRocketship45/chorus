@@ -22,9 +22,14 @@ route in `deploy/hf/` and the repo `Dockerfile` are unchanged.
    them (faster-whisper base.en and the MMS alignment model, about 1.5 GB in
    total) and, with `CHORUS_WARMUP=1`, loads them before serving. Expect a few
    minutes of "Starting"; later restarts re-download unless the cache survives.
-6. **Switch to small.en**: Settings > Variables and secrets > New variable
-   `CHORUS_ASR_MODEL` = `small.en`, then Restart the Space (small.en is
-   downloaded on that start). Watch RAM and latency on 2 vCPU.
+6. **Model and speed**: the defaults are `CHORUS_ASR_MODEL=small.en`,
+   `CHORUS_BEAM_SIZE=5`, `CHORUS_SAME_SOUND=1`, `CHORUS_DIGIT_CONTEXT=1`, the most
+   accurate setting measured (SETUP.md, "Reducing false error flags"). If analysis
+   is too slow on the Space, set Variables (Settings > Variables and secrets)
+   `CHORUS_ASR_MODEL=base.en` and/or `CHORUS_BEAM_SIZE=1`, then Restart. Both were
+   measured: base.en with beam 5 plus same-sound has 20.4% false flags, base.en
+   default 22.2% (small.en with beam 5 and the other two: 15.8%). The Docker route
+   (`Dockerfile` ENV) uses the same defaults. Watch RAM and latency on 2 vCPU.
 7. **Data is ephemeral**: the SQLite DB lives in `/tmp/chorus.db`, so teacher-view
    data resets whenever the Space restarts or sleeps (free Spaces sleep after
    about 48 h idle). Audio is never stored.

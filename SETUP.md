@@ -195,6 +195,29 @@ The `limitations` field, verbatim:
 
 > Mandarin-L1 only (all 250 speakers of the speechocean762 corpus); ASR was base.en on CPU; one seeded sample of 500 utterances from the corpus test split. This is not a general product claim. Most baseline false flags are not accent-shaped (ASR/text mismatch such as in->into), so the ASR sets the ceiling on what an accent filter can withdraw. Number words that Whisper renders as digits are normalised by miscue.normalize for integers 0-999 (larger or mixed tokens such as 2599 or 1st are left unchanged). Of the 645 baseline false flags, 520 are substitutions, 48 omissions and 77 insertions; an INSERTION-status false flag is a word read correctly with an extra word nearby, which the accent filter cannot touch. Final-consonant deletion cannot distinguish an accent from a dropped inflection: 6 of 239 genuine errors (expert accuracy < 8.0) were excused, e.g. its->it, opened->open, looked->look.
 
+### Reducing false error flags (2,500 utterances, GPU)
+
+Seeded sample of 2,500 utterances from the speechocean762 test split (Mandarin L1, 15,967 words; 14,644 expert-correct, 1,323 expert-mispronounced), GPU, from `eval/results_*.json`. "False flags" are expert-correct words the reader was flagged on before any accent filter. "Genuine errors flagged" counts expert-mispronounced words flagged before and after the Mandarin filter. fp_reduction and retention are the accent filter's effect (bootstrap 95% CI as low-high, 1,000 resamples).
+
+| Configuration | False flags on expert-correct words | Genuine errors flagged, before to after filter | fp_reduction (95% CI) | retention (95% CI) |
+| --- | --- | --- | --- | --- |
+| small.en default | 2530 of 14,644 (17.3%) | 972 to 954 of 1,323 | 2530 to 2469, 2.4% (1.8-3.1) | 98.1% (97.3-98.9) |
+| small.en beam 5 | 2426 of 14,644 (16.6%) | 976 to 958 of 1,323 | 2426 to 2355, 2.9% (2.3-3.6) | 98.2% (97.3-98.9) |
+| small.en beam 5 + same-sound | 2366 of 14,644 (16.2%) | 975 to 957 of 1,323 | 2366 to 2295, 3.0% (2.3-3.7) | 98.2% (97.3-98.9) |
+| small.en beam 5 + same-sound + digit-context (shipped) | 2318 of 14,644 (15.8%) | 974 to 956 of 1,323 | 2318 to 2247, 3.1% (2.4-3.8) | 98.2% (97.3-98.9) |
+| small.en beam 5 + same-sound + passage prompt (rejected) | 197 of 14,644 (1.3%) | 231 to 228 of 1,323 | 197 to 187, 5.1% (2.4-8.4) | 98.7% (97.1-100.0) |
+| base.en default | 3251 of 14,644 (22.2%) | 1063 to 1036 of 1,323 | 3251 to 3166, 2.6% (2.1-3.2) | 97.5% (96.5-98.4) |
+| base.en beam 5 + same-sound | 2981 of 14,644 (20.4%) | 1062 to 1035 of 1,323 | 2981 to 2896, 2.9% (2.3-3.4) | 97.5% (96.5-98.3) |
+| base.en beam 5 + same-sound + digit-context | 2971 of 14,644 (20.3%) | 1062 to 1035 of 1,323 | 2971 to 2886, 2.9% (2.3-3.5) | 97.5% (96.5-98.3) |
+
+- **Beam 5** decodes with a beam of five candidate transcripts instead of greedy decoding, so Whisper more often picks the word actually said. It is roughly twice as slow on CPU.
+- **Same-sound** counts a heard word as correct when it has the same CMU-dictionary pronunciation as the expected word (two/too, their/there): the recogniser chose a spelling, the reader said the right sound.
+- **Digit-context** reads a run of digits Whisper wrote as one number (such as 495) digit by digit when the passage has the digits spelled out that way, and as a cardinal otherwise.
+
+Passage prompting (giving Whisper the passage as `initial_prompt`) was tested and rejected. It cuts false flags to 197, but only because it hides genuine errors: Whisper writes the expected word even when the reader said something else, and the number of genuine errors flagged falls from 976 (beam 5 alone) to 231. It stays off, and the API does not expose it.
+
+The app defaults are small.en, beam 5, same-sound on, digit-context on (`CHORUS_ASR_MODEL`, `CHORUS_BEAM_SIZE=5`, `CHORUS_SAME_SOUND=1`, `CHORUS_DIGIT_CONTEXT=1` in the Dockerfile and `deploy/hf_gradio/app.py`; the API reads them per request). Set `CHORUS_ASR_MODEL=base.en` and/or `CHORUS_BEAM_SIZE=1` if analysis is too slow. The accent filter itself is unchanged and still withdraws only about 3% of false flags.
+
 ## Known limitations and deferred items
 
 None of these are working; do not treat them as such.

@@ -203,12 +203,35 @@ def _save_cache(path: Path | None, cache: dict[str, str]) -> None:
     tmp.replace(path)
 
 
+def cache_path_for(
+    model: str, beam_size: int = 1, prompt_passage: bool = False,
+    cache_dir: Path | None = None,
+) -> Path:
+    """Transcript cache file for one set of transcript-changing options.
+
+    The default (beam 1, no prompt) keeps the legacy name
+    ``transcripts_<model>.json``. Every option that changes the transcript adds
+    a suffix, so configs never share a cache. ``same_sound`` is not part of the
+    name: it acts after transcription.
+    """
+    name = f"transcripts_{model}"
+    if beam_size != 1:
+        name += f"_beam{beam_size}"
+    if prompt_passage:
+        name += "_prompt"
+    return (cache_dir or CACHE_DIR) / f"{name}.json"
+
+
 def build_records(
     utterances,
     audio_index: dict[str, Path],
     limit: int | None = None,
     model_size: str = "base.en",
     cache_path: Path | None = None,
+    beam_size: int = 1,
+    same_sound: bool = False,
+    prompt_passage: bool = False,
+    digit_context: bool = False,
     save_every: int = 25,
     return_info: bool = False,
 ):
@@ -243,12 +266,21 @@ def build_records(
                 if wav is None:
                     skip(f"{u.uttid}: no audio in index")
                     continue
-                cache[key] = asr.transcribe(wav, model_size=model_size).text
+                kw = {}
+                if beam_size != 1:
+                    kw["beam_size"] = beam_size
+                if prompt_passage:
+                    kw["initial_prompt"] = u.text
+                cache[key] = asr.transcribe(wav, model_size=model_size, **kw).text
                 fresh += 1
                 if fresh % save_every == 0:
                     _save_cache(cache_path, cache)
             expected_tokens = normalize(u.text)
-            results = detect_miscues(expected_tokens, normalize(cache[key]))
+            results = detect_miscues(
+                expected_tokens,
+                normalize(cache[key], digit_context=expected_tokens if digit_context else None),
+                **({"same_sound": True} if same_sound else {}),
+            )
             if len(results) != len(u.words):
                 skip(f"{u.uttid}: {len(results)} tokens vs {len(u.words)} corpus words")
                 continue
@@ -432,6 +464,16 @@ def main(argv: list[str] | None = None) -> None:
                     help="L1 ruleset to evaluate (learner's first language)")
     ap.add_argument("--results", type=Path, default=RESULTS_PATH,
                     help="where to write the JSON summary")
+    ap.add_argument("--beam-size", type=int, default=1,
+                    help="Whisper beam size (default 1 = greedy, the shipped setting)")
+    ap.add_argument("--same-sound", action="store_true",
+                    help="treat a heard word with the same CMU pronunciation as the "
+                         "expected word (two/too) as correct")
+    ap.add_argument("--prompt-passage", action="store_true",
+                    help="pass the expected passage to Whisper as initial_prompt "
+                         "(may hide genuine errors; check retention)")
+    ap.add_argument("--digit-context", action="store_true",
+                    help="read a Whisper digit run (495) digit-by-digit when the passage does")
     args = ap.parse_args(argv)
 
     _cmu_words()  # fail before any transcription if the dictionary is missing
@@ -445,10 +487,12 @@ def main(argv: list[str] | None = None) -> None:
           f"missing from scores.json: {len(missing_scores)}; missing audio: {len(missing_audio)}")
     utterances = [scores[i] for i in chosen if i in scores]
 
-    cache_path = CACHE_DIR / f"transcripts_{args.model}.json"
+    cache_path = cache_path_for(args.model, args.beam_size, args.prompt_passage)
     records, info = build_records(
         utterances, audio_index, model_size=args.model,
         cache_path=cache_path, return_info=True,
+        beam_size=args.beam_size, same_sound=args.same_sound,
+        prompt_passage=args.prompt_passage, digit_context=args.digit_context,
     )
     if not records:
         raise RuntimeError(
@@ -459,6 +503,9 @@ def main(argv: list[str] | None = None) -> None:
     s = summarise(records, args.language, args.seed, model=args.model)
     s.update(
         model=args.model, seed=args.seed, limit=args.limit, language=args.language,
+        beam_size=args.beam_size, same_sound=args.same_sound,
+        prompt_passage=args.prompt_passage, digit_context=args.digit_context,
+        transcript_cache=cache_path.name,
         split="test", sampled_ids=len(chosen),
         skipped_utterances=info["skipped"], skip_reasons=info["skip_reasons"],
         missing_from_scores=len(missing_scores), missing_audio=len(missing_audio),

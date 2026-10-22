@@ -1,0 +1,343 @@
+{
+  "limitations": "Mandarin-L1 only (all 250 speakers of the speechocean762 corpus); ASR was base.en on CPU; one seeded sample of 2500 utterances from the corpus test split. This is not a general product claim. Most baseline false flags are not accent-shaped (ASR/text mismatch such as in->into), so the ASR sets the ceiling on what an accent filter can withdraw. Number words that Whisper renders as digits are normalised by miscue.normalize for integers 0-999 (larger or mixed tokens such as 2599 or 1st are left unchanged). Of the 2981 baseline false flags, 2374 are substitutions, 201 omissions and 406 insertions; an INSERTION-status false flag is a word read correctly with an extra word nearby, which the accent filter cannot touch. Final-consonant deletion cannot distinguish an accent from a dropped inflection: 27 of 1062 genuine errors (expert accuracy < 8.0) were excused, e.g. its->it, opened->open, looked->look.",
+  "genuine_errors_excused": 27,
+  "baseline_false_flag_rate_on_expert_correct": {
+    "rate": 0.20356459983611036,
+    "fp": 2981,
+    "expert_correct": 14644
+  },
+  "false_flags_by_status": {
+    "substitution": 2374,
+    "omission": 201,
+    "insertion": 406,
+    "total": 2981
+  },
+  "digit_rendering_false_flags": 0,
+  "false_flags_with_any_digit_in_heard": 7,
+  "words": 15967,
+  "utterances": 2500,
+  "counts_by_status": {
+    "correct": 11858,
+    "substitution": 3328,
+    "insertion": 431,
+    "omission": 284,
+    "self_correction": 56,
+    "repetition": 10
+  },
+  "expert_correct": 14644,
+  "expert_mispronounced": 1323,
+  "heard_verbatim": 11858,
+  "fp_before": 2981,
+  "fp_after": 2896,
+  "tp_before": 1062,
+  "tp_after": 1035,
+  "fp_reduction": 0.028513921502851394,
+  "retention": 0.9745762711864406,
+  "fp_reduction_ci95": [
+    0.022937815699406314,
+    0.03444873126576644
+  ],
+  "retention_ci95": [
+    0.9647272052335204,
+    0.9831658762693245
+  ],
+  "bootstrap_resamples": {
+    "fp_reduction": 1000,
+    "retention": 1000,
+    "requested": 1000
+  },
+  "baseline_flag_rate": 0.25320974509926725,
+  "filtered_flag_rate": 0.24619527776038078,
+  "excused_words": 112,
+  "excused_heard_is_real_english_word": 111,
+  "excused_real_word_dictionary": "nltk cmudict",
+  "excused_sample": [
+    [
+      "stopped",
+      "stop",
+      10.0
+    ],
+    [
+      "likes",
+      "like",
+      10.0
+    ],
+    [
+      "feels",
+      "feel",
+      10.0
+    ],
+    [
+      "might",
+      "my",
+      10.0
+    ],
+    [
+      "blacks",
+      "black",
+      10.0
+    ],
+    [
+      "great",
+      "grey",
+      10.0
+    ],
+    [
+      "looked",
+      "look",
+      10.0
+    ],
+    [
+      "likes",
+      "like",
+      10.0
+    ],
+    [
+      "moon",
+      "moo",
+      10.0
+    ],
+    [
+      "blessings",
+      "blessing",
+      5.0
+    ],
+    [
+      "right",
+      "light",
+      10.0
+    ],
+    [
+      "looked",
+      "look",
+      5.0
+    ],
+    [
+      "seen",
+      "see",
+      10.0
+    ],
+    [
+      "loved",
+      "love",
+      10.0
+    ],
+    [
+      "asked",
+      "ask",
+      10.0
+    ],
+    [
+      "dates",
+      "date",
+      10.0
+    ],
+    [
+      "jayme's",
+      "jami",
+      10.0
+    ],
+    [
+      "it's",
+      "it",
+      10.0
+    ],
+    [
+      "happened",
+      "happen",
+      5.0
+    ],
+    [
+      "desks",
+      "desk",
+      10.0
+    ],
+    [
+      "lynda",
+      "lingda",
+      10.0
+    ],
+    [
+      "mandy",
+      "maddy",
+      8.0
+    ],
+    [
+      "things",
+      "since",
+      10.0
+    ],
+    [
+      "looked",
+      "look",
+      5.0
+    ],
+    [
+      "tenth",
+      "tense",
+      10.0
+    ],
+    [
+      "finished",
+      "finish",
+      10.0
+    ],
+    [
+      "colds",
+      "cold",
+      10.0
+    ],
+    [
+      "likes",
+      "like",
+      10.0
+    ],
+    [
+      "faith",
+      "face",
+      10.0
+    ],
+    [
+      "asked",
+      "ask",
+      5.0
+    ],
+    [
+      "helps",
+      "help",
+      10.0
+    ],
+    [
+      "looked",
+      "look",
+      5.0
+    ],
+    [
+      "black",
+      "back",
+      10.0
+    ],
+    [
+      "walked",
+      "walk",
+      10.0
+    ],
+    [
+      "hours",
+      "hour",
+      10.0
+    ],
+    [
+      "jeep",
+      "g",
+      3.0
+    ],
+    [
+      "its",
+      "it",
+      10.0
+    ],
+    [
+      "that's",
+      "that",
+      10.0
+    ],
+    [
+      "looked",
+      "look",
+      10.0
+    ],
+    [
+      "offered",
+      "offer",
+      10.0
+    ]
+  ],
+  "false_positive_cases": [
+    {
+      "expected": "the",
+      "heard": "going",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "nine",
+      "heard": null,
+      "expert_accuracy": 10.0,
+      "status": "omission",
+      "excused": false
+    },
+    {
+      "expected": "how",
+      "heard": "oh",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "still",
+      "heard": "the",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "is",
+      "heard": "are",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "eight",
+      "heard": "8140",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "have",
+      "heard": "water",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "are",
+      "heard": null,
+      "expert_accuracy": 10.0,
+      "status": "omission",
+      "excused": false
+    },
+    {
+      "expected": "thousand",
+      "heard": "000",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "jayme",
+      "heard": "trimmy",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    }
+  ],
+  "model": "base.en",
+  "seed": 0,
+  "limit": 2500,
+  "language": "mandarin",
+  "beam_size": 5,
+  "same_sound": true,
+  "prompt_passage": false,
+  "digit_context": false,
+  "transcript_cache": "transcripts_base.en_beam5.json",
+  "split": "test",
+  "sampled_ids": 2500,
+  "skipped_utterances": 0,
+  "skip_reasons": [],
+  "missing_from_scores": 0,
+  "missing_audio": 0
+}

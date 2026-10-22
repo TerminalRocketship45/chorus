@@ -1,0 +1,208 @@
+{
+  "limitations": "Mandarin-L1 only (all 250 speakers of the speechocean762 corpus); ASR was small.en on CPU; one seeded sample of 2500 utterances from the corpus test split. This is not a general product claim. Most baseline false flags are not accent-shaped (ASR/text mismatch such as in->into), so the ASR sets the ceiling on what an accent filter can withdraw. Number words that Whisper renders as digits are normalised by miscue.normalize for integers 0-999 (larger or mixed tokens such as 2599 or 1st are left unchanged). Of the 197 baseline false flags, 129 are substitutions, 41 omissions and 27 insertions; an INSERTION-status false flag is a word read correctly with an extra word nearby, which the accent filter cannot touch. Final-consonant deletion cannot distinguish an accent from a dropped inflection: 3 of 231 genuine errors (expert accuracy < 8.0) were excused, e.g. thanked->tanked, looked->look, blessings->blessing.",
+  "genuine_errors_excused": 3,
+  "baseline_false_flag_rate_on_expert_correct": {
+    "rate": 0.01345260857689156,
+    "fp": 197,
+    "expert_correct": 14644
+  },
+  "false_flags_by_status": {
+    "substitution": 129,
+    "omission": 41,
+    "insertion": 27,
+    "total": 197
+  },
+  "digit_rendering_false_flags": 0,
+  "false_flags_with_any_digit_in_heard": 2,
+  "words": 15967,
+  "utterances": 2500,
+  "counts_by_status": {
+    "correct": 15530,
+    "substitution": 322,
+    "omission": 75,
+    "self_correction": 5,
+    "insertion": 31,
+    "repetition": 4
+  },
+  "expert_correct": 14644,
+  "expert_mispronounced": 1323,
+  "heard_verbatim": 15530,
+  "fp_before": 197,
+  "fp_after": 187,
+  "tp_before": 231,
+  "tp_after": 228,
+  "fp_reduction": 0.050761421319796954,
+  "retention": 0.987012987012987,
+  "fp_reduction_ci95": [
+    0.024492296918767507,
+    0.08429859974027437
+  ],
+  "retention_ci95": [
+    0.9707281205164993,
+    1.0
+  ],
+  "bootstrap_resamples": {
+    "fp_reduction": 1000,
+    "retention": 1000,
+    "requested": 1000
+  },
+  "baseline_flag_rate": 0.026805285902173234,
+  "filtered_flag_rate": 0.025991106657481056,
+  "excused_words": 13,
+  "excused_heard_is_real_english_word": 13,
+  "excused_real_word_dictionary": "nltk cmudict",
+  "excused_sample": [
+    [
+      "goal",
+      "go",
+      10.0
+    ],
+    [
+      "goods",
+      "good",
+      10.0
+    ],
+    [
+      "it's",
+      "it",
+      10.0
+    ],
+    [
+      "looked",
+      "look",
+      5.0
+    ],
+    [
+      "tires",
+      "tire",
+      10.0
+    ],
+    [
+      "thoughts",
+      "thought",
+      10.0
+    ],
+    [
+      "thanked",
+      "tanked",
+      5.0
+    ],
+    [
+      "skin",
+      "kin",
+      8.0
+    ],
+    [
+      "blessings",
+      "blessing",
+      5.0
+    ],
+    [
+      "thread",
+      "red",
+      10.0
+    ],
+    [
+      "what's",
+      "what",
+      10.0
+    ],
+    [
+      "black",
+      "back",
+      10.0
+    ],
+    [
+      "it's",
+      "it",
+      10.0
+    ]
+  ],
+  "false_positive_cases": [
+    {
+      "expected": "what",
+      "heard": "the",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "these",
+      "heard": "this",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "when",
+      "heard": null,
+      "expert_accuracy": 10.0,
+      "status": "omission",
+      "excused": false
+    },
+    {
+      "expected": "a",
+      "heard": "right",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "at",
+      "heard": "at",
+      "expert_accuracy": 10.0,
+      "status": "insertion",
+      "excused": false
+    },
+    {
+      "expected": "the",
+      "heard": "sir",
+      "expert_accuracy": 8.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "the",
+      "heard": null,
+      "expert_accuracy": 10.0,
+      "status": "omission",
+      "excused": false
+    },
+    {
+      "expected": "at",
+      "heard": "kiss",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "like",
+      "heard": "liked",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    },
+    {
+      "expected": "ann",
+      "heard": "i",
+      "expert_accuracy": 10.0,
+      "status": "substitution",
+      "excused": false
+    }
+  ],
+  "model": "small.en",
+  "seed": 0,
+  "limit": 2500,
+  "language": "mandarin",
+  "beam_size": 5,
+  "same_sound": true,
+  "prompt_passage": true,
+  "digit_context": false,
+  "transcript_cache": "transcripts_small.en_beam5_prompt.json",
+  "split": "test",
+  "sampled_ids": 2500,
+  "skipped_utterances": 0,
+  "skip_reasons": [],
+  "missing_from_scores": 0,
+  "missing_audio": 0
+}

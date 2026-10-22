@@ -11,7 +11,10 @@ import sys
 # Environment defaults must be set before torch / chorus are imported.
 for _k, _v in {
     "CHORUS_ASR_DEVICE": "cpu",
-    "CHORUS_ASR_MODEL": "base.en",
+    "CHORUS_ASR_MODEL": "small.en",
+    "CHORUS_BEAM_SIZE": "5",
+    "CHORUS_SAME_SOUND": "1",
+    "CHORUS_DIGIT_CONTEXT": "1",
     "CHORUS_WARMUP": "1",
     "CHORUS_DB": "/tmp/chorus.db",
     "OMP_NUM_THREADS": "2",

@@ -46,6 +46,30 @@ def _model_size() -> str:
     return os.environ.get("CHORUS_ASR_MODEL", "base.en")
 
 
+def _env_flag(name: str, default: bool) -> bool:
+    v = os.environ.get(name)
+    if v is None or not v.strip():
+        return default
+    return v.strip().lower() not in ("0", "false", "no", "off")
+
+
+def _env_beam_size() -> int:
+    try:
+        return max(1, int(os.environ.get("CHORUS_BEAM_SIZE", "5")))
+    except ValueError:
+        return 5
+
+
+def _analysis_options() -> dict[str, Any]:
+    """Recogniser options, read at request time. Measured best setting by default
+    (see SETUP.md). prompt_passage is deliberately not exposed: it hides genuine errors."""
+    return {
+        "beam_size": _env_beam_size(),
+        "same_sound": _env_flag("CHORUS_SAME_SOUND", True),
+        "digit_context": _env_flag("CHORUS_DIGIT_CONTEXT", True),
+    }
+
+
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
     db.init_db()
@@ -327,7 +351,12 @@ async def _analyze(
 
         try:
             result = await _gate.run(
-                pipeline.analyze, wav_path, passage.text, engine_language, _model_size()
+                pipeline.analyze,
+                wav_path,
+                passage.text,
+                engine_language,
+                _model_size(),
+                **_analysis_options(),
             )
         except AnalysisBusy:
             raise HTTPException(503, "the analyzer is busy right now; try again shortly")

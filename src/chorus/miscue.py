@@ -40,7 +40,12 @@ def _number_words(n: int) -> list[str]:
     return words
 
 
-def normalize(text: str) -> list[str]:
+def _contains_run(tokens: list[str], run: list[str]) -> bool:
+    n = len(run)
+    return any(tokens[i : i + n] == run for i in range(len(tokens) - n + 1))
+
+
+def normalize(text: str, digit_context: list[str] | None = None) -> list[str]:
     """Lowercase, strip punctuation, split into word tokens.
 
     A token that is a canonical integer from 0 to 999 (no leading zeros except
@@ -53,10 +58,27 @@ def normalize(text: str) -> list[str]:
     thousands separators are split by the punctuation rule first, so "3.5" is
     read as "three", "five" and "1,000" as "one", "000" (each part mapped
     separately, so "000" stays unchanged).
+
+    `digit_context` (opt-in, for the transcript side): Whisper writes a run of
+    spoken digits ("four nine five") as one number ("495"), which is ambiguous
+    between "four hundred ninety five" and digit-by-digit. When the expected
+    tokens are given and the digit-by-digit reading appears in them but the
+    cardinal reading does not, the digit-by-digit reading is used. If both or
+    neither match, the default cardinal reading (or unchanged token) stays.
     """
     cleaned = _PUNCT.sub(" ", text.lower())
     out: list[str] = []
     for t in cleaned.split():
+        if digit_context is not None and t.isascii() and t.isdigit() and len(t) > 1:
+            digits = [_ONES[int(c)] for c in t]
+            cardinal = (
+                _number_words(int(t)) if _CANONICAL_INT.fullmatch(t) else None
+            )
+            if _contains_run(digit_context, digits) and not (
+                cardinal and _contains_run(digit_context, cardinal)
+            ):
+                out.extend(digits)
+                continue
         if _CANONICAL_INT.fullmatch(t):
             out.extend(_number_words(int(t)))
         else:
@@ -64,10 +86,17 @@ def normalize(text: str) -> list[str]:
     return out
 
 
-def detect_miscues(expected: list[str], heard: list[str]) -> list[WordResult]:
+def detect_miscues(
+    expected: list[str], heard: list[str], same_sound: bool = False
+) -> list[WordResult]:
     """Classify each expected word against what was actually said.
 
     Returns exactly one WordResult per expected word, in passage order.
+
+    With ``same_sound=True`` a SUBSTITUTION whose heard word has an identical
+    CMU pronunciation to the expected word (two/too, their/there) is CORRECT:
+    the recogniser chose a spelling, the reader said the right sound. `heard`
+    keeps the recogniser's spelling. Off by default.
     """
     results: list[WordResult] = [
         WordResult(index=i, expected=w, heard=None, status=WordStatus.OMISSION)
@@ -97,6 +126,17 @@ def detect_miscues(expected: list[str], heard: list[str]) -> list[WordResult]:
             pass  # already initialised as OMISSION
         elif tag == "insert":
             extras.setdefault(i1, []).extend(heard[j1:j2])
+
+    if same_sound:
+        from chorus.phonemes import same_sound as _same_sound
+
+        for r in results:
+            if (
+                r.status is WordStatus.SUBSTITUTION
+                and r.heard is not None
+                and _same_sound(r.expected, r.heard)
+            ):
+                r.status = WordStatus.CORRECT
 
     _apply_extras(results, extras)
     return results

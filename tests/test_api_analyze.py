@@ -15,6 +15,7 @@ from chorus_api import db
 from chorus_api.app import app
 from chorus_api.concurrency import AnalysisBusy
 
+OPTIONS_SEEN: list = []
 CAT_WAV = "tests/fixtures/the_cat_sat.wav"
 
 
@@ -26,8 +27,9 @@ def client(tmp_path, monkeypatch):
 
 
 def _fake_analyze_factory(language_seen: list):
-    def fake_analyze(audio_path, expected_text, language=None, model_size="base.en"):
+    def fake_analyze(audio_path, expected_text, language=None, model_size="base.en", **options):
         language_seen.append(language)
+        OPTIONS_SEEN.append(dict(options))
         words = [
             WordResult(index=0, expected="the", heard="the", status=WordStatus.CORRECT, start=0.0, end=0.1),
             WordResult(
@@ -210,7 +212,7 @@ def test_analyze_no_student_id_does_not_save_a_session(client, monkeypatch):
 
 
 def test_analyze_no_speech_heard_is_422(client, monkeypatch):
-    def all_omitted(audio_path, expected_text, language=None, model_size="base.en"):
+    def all_omitted(audio_path, expected_text, language=None, model_size="base.en", **options):
         words = [
             WordResult(index=0, expected="the", heard=None, status=WordStatus.OMISSION),
             WordResult(index=1, expected="cat", heard=None, status=WordStatus.OMISSION),
@@ -299,3 +301,36 @@ def test_analyze_503_when_gate_is_busy(client, monkeypatch):
         )
     assert resp.status_code == 503
     assert "detail" in resp.json()
+
+
+def _post_options(client, monkeypatch):
+    OPTIONS_SEEN.clear()
+    resp, _ = _post_analyze(client, monkeypatch, passage_id="el-01")
+    assert resp.status_code == 200, resp.text
+    return OPTIONS_SEEN[-1]
+
+
+def test_analyze_default_options_are_the_measured_best(client, monkeypatch):
+    for k in ("CHORUS_BEAM_SIZE", "CHORUS_SAME_SOUND", "CHORUS_DIGIT_CONTEXT"):
+        monkeypatch.delenv(k, raising=False)
+    assert _post_options(client, monkeypatch) == {
+        "beam_size": 5,
+        "same_sound": True,
+        "digit_context": True,
+    }
+
+
+def test_analyze_options_can_be_overridden_by_env(client, monkeypatch):
+    monkeypatch.setenv("CHORUS_BEAM_SIZE", "1")
+    monkeypatch.setenv("CHORUS_SAME_SOUND", "0")
+    monkeypatch.setenv("CHORUS_DIGIT_CONTEXT", "false")
+    assert _post_options(client, monkeypatch) == {
+        "beam_size": 1,
+        "same_sound": False,
+        "digit_context": False,
+    }
+
+
+def test_analyze_never_passes_prompt_passage(client, monkeypatch):
+    monkeypatch.setenv("CHORUS_PROMPT_PASSAGE", "1")
+    assert "prompt_passage" not in _post_options(client, monkeypatch)

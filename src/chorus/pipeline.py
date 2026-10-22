@@ -74,8 +74,18 @@ def analyze(
     expected_text: str,
     language: str | None = None,
     model_size: str = "base.en",
+    beam_size: int = 1,
+    same_sound: bool = False,
+    prompt_passage: bool = False,
+    digit_context: bool = False,
 ) -> Analysis:
     """Score one read-aloud.
+
+    Opt-in recogniser options (defaults reproduce the shipped behaviour):
+    `beam_size` (decoding beam), `same_sound` (homophone spellings such as
+    two/too count as correct) and `digit_context` (digit runs such as 495 may read digit-by-digit if the
+    passage does), and `prompt_passage` (give Whisper the passage
+    as `initial_prompt`; can hide genuine errors, see eval/).
 
     `language` is the reader's home language. When given, the returned
     Analysis carries an accent-adjusted score alongside the raw one, and an
@@ -88,8 +98,19 @@ def analyze(
     expected_tokens = normalize(expected_text)
     if not expected_tokens:
         raise ValueError("expected_text contains no words")
-    transcript = transcribe(audio_path, model_size=model_size)
-    words = detect_miscues(expected_tokens, normalize(transcript.text))
+    asr_opts: dict = {}
+    if beam_size != 1:
+        asr_opts["beam_size"] = beam_size
+    if prompt_passage:
+        asr_opts["initial_prompt"] = expected_text
+    transcript = transcribe(audio_path, model_size=model_size, **asr_opts)
+    words = detect_miscues(
+        expected_tokens,
+        normalize(
+            transcript.text, digit_context=expected_tokens if digit_context else None
+        ),
+        **({"same_sound": True} if same_sound else {}),
+    )
 
     aligned_indices = [
         w.index

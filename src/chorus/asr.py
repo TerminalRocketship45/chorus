@@ -81,12 +81,31 @@ def _get_model(model_size: str):
     return WhisperModel(model_size, device=device, compute_type=compute_type)
 
 
-def transcribe(audio_path: str | Path, model_size: str = "base.en") -> Transcript:
-    """Transcribe an audio file. Returns what was said, not what was expected."""
+def transcribe(
+    audio_path: str | Path,
+    model_size: str = "base.en",
+    beam_size: int = 1,
+    initial_prompt: str | None = None,
+    hotwords: str | None = None,
+) -> Transcript:
+    """Transcribe an audio file. Returns what was said, not what was expected.
+
+    Defaults reproduce the shipped behaviour (greedy decoding, no prompt).
+    beam_size > 1 is slower (roughly 2x on CPU). initial_prompt / hotwords bias
+    the recogniser towards given text; passing the expected passage can make
+    it write the expected word even when the reader said something else, so
+    it is opt-in and must be checked against genuine-error retention.
+    """
     path = Path(audio_path)
     if not path.is_file():
         raise FileNotFoundError(f"Audio file not found: {path}")
     model = _get_model(model_size)
-    segments, info = model.transcribe(str(path), language="en", beam_size=1)
+    segments, info = model.transcribe(
+        str(path),
+        language="en",
+        beam_size=beam_size,
+        initial_prompt=initial_prompt,
+        hotwords=hotwords,
+    )
     text = " ".join(seg.text.strip() for seg in segments).strip()
     return Transcript(text=text, duration_s=float(info.duration))

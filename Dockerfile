@@ -52,7 +52,10 @@ COPY --chown=user --from=web /web/dist /app/web/dist
 
 ENV PYTHONPATH=/app/src \
     CHORUS_ASR_DEVICE=cpu \
-    CHORUS_ASR_MODEL=base.en \
+    CHORUS_ASR_MODEL=small.en \
+    CHORUS_BEAM_SIZE=5 \
+    CHORUS_SAME_SOUND=1 \
+    CHORUS_DIGIT_CONTEXT=1 \
     CHORUS_WARMUP=1 \
     CHORUS_DB=/tmp/chorus.db \
     OMP_NUM_THREADS=2 \

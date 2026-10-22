@@ -22,12 +22,16 @@ Spanish rules come from published research and have not been measured.
 
 ## What has been measured
 
-On 500 utterances from the speechocean762 test split (Mandarin speakers,
-`base.en`, 3,219 words), the accent filter withdrew 2.2% of false flags
-(14 of 645; 95% CI 1.1% to 3.4%) and kept 97.5% of the words experts marked as
-mispronounced (233 of 239). The effect is small: most false flags come from
-the speech recogniser, not from accent, so the recogniser sets the ceiling.
-This is a prototype, not a validated assessment tool.
+The one labelled corpus available is speechocean762, whose speakers are all
+Mandarin-L1, so only the Mandarin rules are measured. On its full test split
+(2,500 recordings, 15,967 words), with the settings this app ships (Whisper
+small.en, beam search 5, same-sound and digit-context rules), the speech
+recognizer wrongly flags 2,318 of 14,644 words the experts marked correct
+(15.8%). The accent filter withdrew 71 of those false flags (3.1%, 95% CI
+2.4% to 3.8%) and kept 956 of 974 flagged genuine errors (98.2%, 95% CI 97.3%
+to 98.9%). The filter's effect is small: most false flags come from the speech
+recognizer, not from accent. This is a prototype, not a validated assessment
+tool.
 
 ## Notes
 
