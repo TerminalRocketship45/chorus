@@ -254,7 +254,10 @@ def test_unknown_g_id_is_404(client):
 
 
 def _fake_analyze(audio_path, expected_text, language=None, model_size="base.en", **options):
-    words = [WordResult(index=0, expected="a", heard="a", status=WordStatus.CORRECT, start=0.0, end=0.1)]
+    words = [
+        WordResult(index=i, expected=w, heard=w, status=WordStatus.CORRECT, start=0.1 * i, end=0.1 * i + 0.1)
+        for i, w in enumerate(["a", "b", "c"])
+    ]
     score = ReadingScore(accuracy=0.9, wcpm=70.0, total_words=1, correct_words=1, duration_s=2.0, long_pauses=0)
     adj = ReadingScore(accuracy=0.95, wcpm=72.0, total_words=1, correct_words=1, duration_s=2.0, long_pauses=0)
     _fake_analyze.texts.append(expected_text)

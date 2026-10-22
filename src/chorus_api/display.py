@@ -17,6 +17,7 @@ SKIPPED = "skipped"
 EXTRA_NEARBY = "extra_nearby"
 REPEATED = "repeated"
 SELF_CORRECTED = "self_corrected"
+NOT_REACHED = "not_reached"
 
 #: display values that the practice list is built from.
 _PRACTICE_DISPLAYS = frozenset({MISREAD, SKIPPED})
@@ -33,6 +34,7 @@ def word_display(word: WordResult) -> str:
       insertion (word itself may be correct!)   -> "extra_nearby", never "misread"
       repetition                                -> "repeated"
       self_correction                           -> "self_corrected"
+      not_reached (reader stopped before it)    -> "not_reached" (never an error)
       hesitation (engine never assigns this)    -> "correct" (defensive default;
                                                      docs: "clients may ignore it")
     """
@@ -49,6 +51,8 @@ def word_display(word: WordResult) -> str:
         return REPEATED
     if status is WordStatus.SELF_CORRECTION:
         return SELF_CORRECTED
+    if status is WordStatus.NOT_REACHED:
+        return NOT_REACHED
     if status is WordStatus.HESITATION:
         # Never assigned by the engine today; treat as not-an-error if it ever is.
         return CORRECT

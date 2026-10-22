@@ -295,3 +295,39 @@ export const MOCK_TOPIC_TEXT = [
   "Today we will read about {t}. Many people find {t} interesting because there is always something new to learn. Some facts about {t} are easy to see, and others take careful study. If you look closely, you may notice small details that surprise you.",
   "Have you ever wondered about {t}? Long ago, people asked questions about {t} and wrote down what they found. Their notes help us today. Each new idea about {t} builds on the ones before it.",
 ];
+
+/**
+ * Third analyze fixture: the reader stopped after 5 of 9 words, so the last four are
+ * `not_reached` (muted, not errors) and accuracy is out of the 5 words reached.
+ * Request it with passage_id "mock-early".
+ */
+export const MOCK_ANALYZE_STOPPED_EARLY: AnalyzeResponse = {
+  session_id: 103,
+  passage_id: "el-01",
+  home_language: "english",
+  accent_filter_applied: false,
+  words: [
+    { index: 0, expected: "the", heard: "the", status: "correct", accent_excused: false, display: "correct", start: 0.1, end: 0.2 },
+    { index: 1, expected: "quick", heard: "quick", status: "correct", accent_excused: false, display: "correct", start: 0.25, end: 0.5 },
+    { index: 2, expected: "brown", heard: "bran", status: "substitution", accent_excused: false, display: "misread", start: 0.55, end: 0.8 },
+    { index: 3, expected: "fox", heard: "fox", status: "correct", accent_excused: false, display: "correct", start: 0.85, end: 1.1 },
+    { index: 4, expected: "jumps", heard: "jumps", status: "correct", accent_excused: false, display: "correct", start: 1.15, end: 1.5 },
+    { index: 5, expected: "over", heard: null, status: "not_reached", accent_excused: false, display: "not_reached", start: null, end: null },
+    { index: 6, expected: "the", heard: null, status: "not_reached", accent_excused: false, display: "not_reached", start: null, end: null },
+    { index: 7, expected: "lazy", heard: null, status: "not_reached", accent_excused: false, display: "not_reached", start: null, end: null },
+    { index: 8, expected: "dog", heard: null, status: "not_reached", accent_excused: false, display: "not_reached", start: null, end: null },
+  ],
+  score: {
+    accuracy: 0.8,
+    wcpm: 48,
+    total_words: 5,
+    correct_words: 4,
+    duration_s: 5,
+    long_pauses: 0,
+    words_reached: 5,
+    passage_words: 9,
+  },
+  accent_adjusted: null,
+  practice_words: ["brown"],
+  transcript: "the quick bran fox jumps",
+};

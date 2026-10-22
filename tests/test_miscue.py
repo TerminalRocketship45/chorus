@@ -148,3 +148,53 @@ def test_spoken_number_word_matches_digit_rendering():
 
 def test_normalize_splits_decimals_per_part():
     assert normalize("3.5") == ["three", "five"]
+
+
+# --- mark_unreached (reader stopped early) ---------------------------------
+
+
+def _marked(expected, heard, tail=0.0):
+    from chorus.miscue import mark_unreached
+
+    return [w.status for w in mark_unreached(detect_miscues(normalize(expected), normalize(heard)), tail)]
+
+
+def test_trailing_omissions_become_not_reached():
+    s = _marked("a b c d e f", "a b c")
+    assert s == [WordStatus.CORRECT] * 3 + [WordStatus.NOT_REACHED] * 3
+
+
+def test_leading_and_middle_omissions_stay_errors():
+    s = _marked("a b c d e f", "c e")
+    assert s[:2] == [WordStatus.OMISSION] * 2
+    assert s[3] == WordStatus.OMISSION
+    assert s[5] == WordStatus.NOT_REACHED
+
+
+def test_substitution_before_a_correct_last_word_is_fine():
+    s = _marked("the cat sat on mats", "the cot sat")
+    assert s[1] == WordStatus.SUBSTITUTION
+    assert s[3:] == [WordStatus.NOT_REACHED] * 2
+
+
+def test_silence_is_never_marked_not_reached():
+    s = _marked("a b c", "")
+    assert s == [WordStatus.OMISSION] * 3
+
+
+def test_full_read_has_no_not_reached():
+    assert WordStatus.NOT_REACHED not in _marked("a b c", "a b c")
+
+
+def test_speech_after_last_word_means_recogniser_lost_the_end():
+    # lots of speech after the last heard word: the omissions stay errors
+    s = _marked("a b c d e f", "a b c", tail=3.0)
+    assert s[3:] == [WordStatus.OMISSION] * 3
+    # unknown tail (last word untimed): also conservative
+    assert _marked("a b c d", "a b", tail=None)[2:] == [WordStatus.OMISSION] * 2
+
+
+def test_substitution_as_last_heard_word_keeps_trailing_omissions():
+    # "cot" is a substitution at the end: the recogniser's end is garbled, not a clean stop
+    s = _marked("the cat sat on mats", "the cot")
+    assert s[2:] == [WordStatus.OMISSION] * 3

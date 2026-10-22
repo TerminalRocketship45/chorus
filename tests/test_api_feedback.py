@@ -130,3 +130,14 @@ def test_template_without_errors():
 
 def test_bad_body_is_400(client):
     assert client.post("/api/feedback", json={"words": 3}).status_code == 400
+
+
+def test_summary_mentions_early_stop_and_never_lists_unreached():
+    words = [W(0, "she", "she", "correct"), W(1, "ran", "ran", "correct"),
+             W(2, "home", None, "not_reached", "not_reached"),
+             W(3, "fast", None, "not_reached", "not_reached")]
+    s = feedback.summarize(words, {"wcpm": 80, "accuracy": 1.0}, None)
+    assert s["skipped_words"] == [] and s["words_reached"] == 2 and s["passage_words"] == 4
+    assert "first 2 words" in feedback.template(s)
+    text = " ".join(m["content"] for m in feedback.build_messages(s))
+    assert "stopped early" in text and "first 2 of 4" in text

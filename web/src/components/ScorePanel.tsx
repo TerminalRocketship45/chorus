@@ -1,5 +1,5 @@
 import type { ReadingScore } from "../types/api";
-import { formatAccuracyPct, formatWcpm } from "../lib/format";
+import { formatAccuracyPct, formatWcpm, formatWordsReached } from "../lib/format";
 
 interface ScorePanelProps {
   score: ReadingScore;
@@ -8,6 +8,7 @@ interface ScorePanelProps {
 
 /** Words correct per minute is the headline; accuracy sits below, raw and accent-adjusted side by side. */
 export function ScorePanel({ score, accentAdjusted }: ScorePanelProps) {
+  const reached = formatWordsReached(score);
   return (
     <>
       <div className="group summary summary--single summary--headline" role="group" aria-label="Words correct per minute">
@@ -39,6 +40,11 @@ export function ScorePanel({ score, accentAdjusted }: ScorePanelProps) {
               <div className="stat__label">of words read correctly</div>
             </div>
           </div>
+        )}
+        {reached && (
+          <p className="footnote" style={{ padding: "0 16px" }}>
+            {reached}. Accuracy counts only those words.
+          </p>
         )}
       </section>
     </>

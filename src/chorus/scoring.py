@@ -42,12 +42,17 @@ def _score(
     Leading or trailing silence therefore lowers WCPM; callers wanting
     the standard first-word-to-last-word figure must pass a trimmed duration.
     """
-    total = len(words)
+    passage_total = len(words)
+    # NOT_REACHED words are neither right nor wrong: leave them out of the denominator.
+    total = sum(1 for w in words if w.status is not WordStatus.NOT_REACHED)
     correct = sum(
         1
         for w in words
-        if w.status not in ERROR_STATUSES
-        or (excuse_accents and w.accent_excused and w.status is WordStatus.SUBSTITUTION)
+        if w.status is not WordStatus.NOT_REACHED
+        and (
+            w.status not in ERROR_STATUSES
+            or (excuse_accents and w.accent_excused and w.status is WordStatus.SUBSTITUTION)
+        )
     )
     accuracy = correct / total if total else 0.0
     wcpm = (correct / duration_s) * 60.0 if duration_s > 0 else 0.0
@@ -58,6 +63,8 @@ def _score(
         correct_words=correct,
         duration_s=duration_s,
         long_pauses=_count_long_pauses(words, long_pause_s),
+        words_reached=total,
+        passage_words=passage_total,
     )
 
 

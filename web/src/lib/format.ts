@@ -44,3 +44,13 @@ export function gradeBandLabel(band: "elementary" | "secondary"): string {
 export function formatHomeLanguage(code: string): string {
   return code.charAt(0).toUpperCase() + code.slice(1);
 }
+
+/**
+ * "You read 24 of 128 words" when the reader stopped early, else null.
+ * Old saved sessions lack the fields; they count as a full read.
+ */
+export function formatWordsReached(score: { words_reached?: number; passage_words?: number }): string | null {
+  const { words_reached: reached, passage_words: total } = score;
+  if (reached === undefined || total === undefined || reached >= total) return null;
+  return `You read ${reached} of ${total} words`;
+}

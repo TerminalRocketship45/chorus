@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { visualForDisplay } from "./display";
+import { hasUnreached, visualForDisplay, WORD_LEGEND } from "./display";
 
 describe("visualForDisplay", () => {
   it("renders accent_ok identically to correct (never reveal the accent excuse)", () => {
@@ -40,5 +40,19 @@ describe("visualForDisplay", () => {
     for (const display of ["correct", "accent_ok", "skipped", "extra_nearby", "repeated", "self_corrected"] as const) {
       expect(visualForDisplay(display).showsHeard).toBe(false);
     }
+  });
+
+  it("renders not_reached as plain muted text, never an error, with no marker or heard text", () => {
+    const v = visualForDisplay("not_reached");
+    expect(v.className).toBe("unreached");
+    expect(v.marker).toBe("none");
+    expect(v.markerLabel).toBeNull();
+    expect(v.showsHeard).toBe(false);
+    expect(WORD_LEGEND.some((i) => i.className === "unreached")).toBe(false);
+  });
+
+  it("detects whether any word was not reached", () => {
+    expect(hasUnreached([{ display: "correct" }, { display: "not_reached" }])).toBe(true);
+    expect(hasUnreached([{ display: "correct" }, { display: "skipped" }])).toBe(false);
   });
 });

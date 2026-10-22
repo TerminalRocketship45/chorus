@@ -7,9 +7,10 @@ import type { WordDisplay } from "../types/api";
  *   - `correct` and `accent_ok` render IDENTICALLY (never reveal accent_ok).
  *   - `extra_nearby` renders as correct (never as a misread) plus a caret marker.
  *   - `repeated` / `self_corrected` render as correct plus a light positive mark.
- *   - `misread` and `skipped` are the only two "not plain correct" classes.
+ *   - `misread` and `skipped` are the only two error classes.
+ *   - `not_reached` (the reader stopped before it) is plain muted text: never an error.
  */
-export type WordVisualClass = "correct" | "misread" | "skipped";
+export type WordVisualClass = "correct" | "misread" | "skipped" | "unreached";
 export type WordMarker = "none" | "extra" | "repeated" | "fixed";
 
 export interface WordVisual {
@@ -26,6 +27,7 @@ const VISUALS: Record<WordDisplay, WordVisual> = {
   accent_ok: { className: "correct", marker: "none", markerLabel: null, showsHeard: false },
   misread: { className: "misread", marker: "none", markerLabel: null, showsHeard: true },
   skipped: { className: "skipped", marker: "none", markerLabel: null, showsHeard: false },
+  not_reached: { className: "unreached", marker: "none", markerLabel: null, showsHeard: false },
   extra_nearby: {
     className: "correct",
     marker: "extra",
@@ -50,6 +52,11 @@ export function visualForDisplay(display: WordDisplay): WordVisual {
   return VISUALS[display];
 }
 
+/** True when the reader stopped early and some words were never reached. */
+export function hasUnreached(words: Array<{ display: WordDisplay }>): boolean {
+  return words.some((w) => w.display === "not_reached");
+}
+
 export const WORD_LEGEND: Array<{ className: WordVisualClass; marker: WordMarker; label: string }> = [
   { className: "correct", marker: "none", label: "Correct" },
   { className: "correct", marker: "extra", label: "Extra word added nearby" },
@@ -58,3 +65,5 @@ export const WORD_LEGEND: Array<{ className: WordVisualClass; marker: WordMarker
   { className: "misread", marker: "none", label: "Tricky word" },
   { className: "skipped", marker: "none", label: "Skipped" },
 ];
+
+export const UNREACHED_LEGEND = { className: "unreached", marker: "none", label: "Not reached (you stopped before it)" } as const;

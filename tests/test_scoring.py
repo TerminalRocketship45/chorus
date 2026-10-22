@@ -109,3 +109,19 @@ def test_hesitation_does_not_count_against_accuracy():
     s = score_reading(words, duration_s=60.0)
     assert s.accuracy == 1.0
     assert s.correct_words == 3
+
+
+def test_not_reached_words_leave_every_denominator():
+    words = [w(i, WordStatus.CORRECT) for i in range(3)] + [
+        w(i, WordStatus.NOT_REACHED) for i in range(3, 10)
+    ]
+    s = score_reading(words, duration_s=60.0)
+    assert (s.total_words, s.words_reached, s.passage_words) == (3, 3, 10)
+    assert s.accuracy == 1.0 and s.correct_words == 3 and s.wcpm == 3.0
+    a = score_with_accent_excused(words, duration_s=60.0)
+    assert a.accuracy == 1.0 and a.passage_words == 10
+
+
+def test_reached_defaults_to_total_when_nothing_excluded():
+    s = score_reading([w(0, WordStatus.CORRECT), w(1, WordStatus.OMISSION)], duration_s=60.0)
+    assert (s.total_words, s.words_reached, s.passage_words) == (2, 2, 2)

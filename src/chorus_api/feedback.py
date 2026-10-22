@@ -48,11 +48,15 @@ def summarize(
     misread: list[dict[str, str]] = []
     skipped: list[str] = []
     repeated = self_corrected = 0
+    not_reached = 0
     for w in words:
         if not isinstance(w, dict):
             continue
         status = w.get("status")
         display = w.get("display")
+        if status == "not_reached" or display == "not_reached":
+            not_reached += 1
+            continue
         if w.get("accent_excused") or display in ("accent_ok", "extra_nearby"):
             continue
         expected = str(w.get("expected") or "").strip()
@@ -74,6 +78,9 @@ def summarize(
         "repeated_count": repeated,
         "self_corrected_count": self_corrected,
     }
+    if not_reached:
+        out["words_reached"] = len([w for w in words if isinstance(w, dict)]) - not_reached
+        out["passage_words"] = out["words_reached"] + not_reached
     if accent_adjusted:
         out["accuracy_percent_accent_adjusted"] = round(_num(accent_adjusted, "accuracy") * 100)
     return out
@@ -102,6 +109,11 @@ def build_messages(summary: dict[str, Any], band_hint: str | None = None) -> lis
             f"Accuracy when pronunciation differences are set aside: "
             f"{summary['accuracy_percent_accent_adjusted']} percent."
         )
+    if "words_reached" in summary:
+        lines.append(
+            f"The reader stopped early: they read the first {summary['words_reached']} of "
+            f"{summary['passage_words']} words. The unread words are not mistakes."
+        )
     if summary["misread_words"]:
         lines.append(
             "Words misread (word, what was heard): "
@@ -120,7 +132,8 @@ def build_messages(summary: dict[str, Any], band_hint: str | None = None) -> lis
         'as "you". Be encouraging and specific. Say the reading speed in plain words '
         '("words correct per minute"). Suggest practicing at most three words, and only words '
         "from the misread or skipped lists. Do not mention accents, do not diagnose or label "
-        "the reader, and do not list every error."
+        "the reader, and do not list every error. If the reader stopped early, say so neutrally "
+        "and never call the unread words mistakes."
     )
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
@@ -167,7 +180,11 @@ def template(summary: dict[str, Any]) -> str:
     wcpm = summary["words_correct_per_minute"]
     first = f"You read at about {wcpm} words correct per minute."
     practice = practice_set(summary)[:MAX_PRACTICE]
-    if summary["accuracy_percent"] >= 90:
+    if "words_reached" in summary:
+        second = f"You read the first {summary['words_reached']} words."
+        if summary["accuracy_percent"] >= 90:
+            second += " Those went really well."
+    elif summary["accuracy_percent"] >= 90:
         second = "Great work, you read almost every word just right."
     elif summary["self_corrected_count"]:
         second = "Nice work fixing words by yourself as you went."

@@ -13,7 +13,10 @@ from pathlib import Path
 from chorus.align import WordTiming, align_words
 from chorus.asr import transcribe
 from chorus.l1.engine import is_accent_variant, load_ruleset
-from chorus.miscue import detect_miscues, normalize
+from chorus.miscue import (
+    detect_miscues, has_trailing_omissions, last_heard_index, mark_unreached, normalize,
+)
+from chorus.tail import MAX_TAIL_SPEECH_S, implausibly_long, speech_after
 from chorus.scoring import score_reading, score_with_accent_excused
 from chorus.types import Analysis, WordResult, WordStatus
 
@@ -69,6 +72,39 @@ def _attach_timings(
     return out
 
 
+def attach_alignment(
+    audio_path: str | Path, expected_tokens: list[str], words: list[WordResult]
+) -> list[WordResult]:
+    """Force-align the heard words to the audio and copy start/end onto them."""
+    aligned_indices = [
+        w.index
+        for w in words
+        if w.status is not WordStatus.OMISSION and _is_alignable(w.expected)
+    ]
+    if not aligned_indices:
+        return words
+    timings = align_words(
+        audio_path, " ".join(expected_tokens[i] for i in aligned_indices)
+    )
+    return _attach_timings(words, timings, aligned_indices)
+
+
+def tail_speech_s(audio_path: str | Path, words: list[WordResult]) -> float | None:
+    """Seconds of speech after the last heard word, or None if that word is untimed or its
+    aligned span is implausibly long.
+
+    Uses the last heard word's own end time; if it was never timed (an
+    unalignable token) we do not guess, and the caller keeps the omissions.
+    """
+    last = last_heard_index(words)
+    if last is None or words[last].start is None or words[last].end is None:
+        return None
+    w = words[last]
+    if implausibly_long(w.expected, w.start, w.end):
+        return None  # aligner stretched it over untranscribed speech; do not trust the end time
+    return speech_after(audio_path, w.end)
+
+
 def analyze(
     audio_path: str | Path,
     expected_text: str,
@@ -80,6 +116,7 @@ def analyze(
     digit_context: bool = False,
     vad_filter: bool = False,
     drop_hallucinations: bool = False,
+    exclude_unreached: bool = False,
 ) -> Analysis:
     """Score one read-aloud.
 
@@ -89,7 +126,10 @@ def analyze(
     passage does), and `prompt_passage` (give Whisper the passage
     as `initial_prompt`; can hide genuine errors, see eval/), `vad_filter` (skip
     non-speech before decoding) and `drop_hallucinations` (discard segments Whisper
-    flags as silence).
+    flags as silence). `exclude_unreached` marks the trailing run of omissions after the
+    last word heard as NOT_REACHED (which no score counts) when the audio has under
+    MAX_TAIL_SPEECH_S of speech after that word, i.e. the reader stopped rather than
+    the recogniser losing the end.
 
     `language` is the reader's home language. When given, the returned
     Analysis carries an accent-adjusted score alongside the raw one, and an
@@ -120,16 +160,9 @@ def analyze(
         **({"same_sound": True} if same_sound else {}),
     )
 
-    aligned_indices = [
-        w.index
-        for w in words
-        if w.status is not WordStatus.OMISSION and _is_alignable(w.expected)
-    ]
-    if aligned_indices:
-        timings = align_words(
-            audio_path, " ".join(expected_tokens[i] for i in aligned_indices)
-        )
-        words = _attach_timings(words, timings, aligned_indices)
+    words = attach_alignment(audio_path, expected_tokens, words)
+    if exclude_unreached and has_trailing_omissions(words):
+        mark_unreached(words, tail_speech_s(audio_path, words), MAX_TAIL_SPEECH_S)
 
     raw = score_reading(words, duration_s=transcript.duration_s)
     adjusted = None

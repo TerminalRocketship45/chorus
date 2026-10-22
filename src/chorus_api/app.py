@@ -52,10 +52,13 @@ NO_SPEECH_MESSAGE = (
 TOO_QUIET_MESSAGE = (
     "Your recording was very quiet. Check the microphone, move closer, and try again."
 )
-#: A reading is rejected as "not heard" when fewer than this share of the passage's
-#: words were heard as correct or close (see `_heard_fraction`). A struggling reader
+#: A reading is rejected as "not heard" when fewer than this share of the words reached
+#: were heard as correct or close (see `_heard_fraction`). A struggling reader
 #: still matches far more than this; text Whisper invents from silence matches ~none.
 MIN_HEARD_FRACTION = 0.15
+#: ...and at least this many words must be heard as correct or close, so one or two
+#: stray words (a hallucinated "you") cannot pass against a long passage.
+MIN_HEARD_WORDS = 3
 #: A substituted word counts as "close" when its spelling is at least this similar.
 NEAR_RATIO = 0.6
 
@@ -92,6 +95,8 @@ def _analysis_options() -> dict[str, Any]:
         "digit_context": _env_flag("CHORUS_DIGIT_CONTEXT", True),
         "vad_filter": _env_flag("CHORUS_VAD", VAD_DEFAULT),
         "drop_hallucinations": _env_flag("CHORUS_DROP_HALLUCINATIONS", True),
+        # A reader who stops early is scored on the words reached, not the whole passage.
+        "exclude_unreached": True,
     }
 
 
@@ -122,24 +127,29 @@ def _save_debug(raw_path: str, wav_path: str, meta: dict[str, Any]) -> None:
         log.warning("debug audio capture failed: %s", exc)
 
 
-def _heard_fraction(words: list[WordResult]) -> float:
-    """Share of the passage's words heard as correct or close.
+def _heard_ok_count(words: list[WordResult]) -> int:
+    """How many words were heard as correct or close (difflib ratio >= NEAR_RATIO,
+    e.g. kat/cat). Omissions and unrelated words do not count."""
+    return sum(
+        1
+        for w in words
+        if w.heard is not None
+        and (
+            w.heard == w.expected
+            or difflib.SequenceMatcher(None, w.heard, w.expected).ratio() >= NEAR_RATIO
+        )
+    )
 
-    A word counts when what was heard equals what was expected, or is a close
-    spelling of it (difflib ratio >= NEAR_RATIO, e.g. kat/cat). Omissions and
-    unrelated words do not count.
+
+def _heard_fraction(words: list[WordResult]) -> float:
+    """Share of the words the reader REACHED that were heard as correct or close.
+
+    Words the reader never got to (status NOT_REACHED) are left out of the
+    denominator, so a short honest reading of the start of a long passage is not
+    rejected; silence has no reached words marked, so it still scores 0.
     """
-    if not words:
-        return 0.0
-    ok = 0
-    for w in words:
-        if w.heard is None:
-            continue
-        if w.heard == w.expected or (
-            difflib.SequenceMatcher(None, w.heard, w.expected).ratio() >= NEAR_RATIO
-        ):
-            ok += 1
-    return ok / len(words)
+    reached = [w for w in words if w.status is not WordStatus.NOT_REACHED]
+    return _heard_ok_count(reached) / len(reached) if reached else 0.0
 
 
 @asynccontextmanager
@@ -475,7 +485,12 @@ async def _analyze(
         debug["words"] = [_word_to_dict(w) for w in result.words]
         debug["heard_fraction"] = round(_heard_fraction(result.words), 3)
 
-        if _no_speech_heard(result.words) or debug["heard_fraction"] < MIN_HEARD_FRACTION:
+        debug["heard_ok_count"] = _heard_ok_count(result.words)
+        if (
+            _no_speech_heard(result.words)
+            or debug["heard_fraction"] < MIN_HEARD_FRACTION
+            or debug["heard_ok_count"] < MIN_HEARD_WORDS
+        ):
             debug["rejected"] = "not enough reading heard"
             raise HTTPException(422, NO_SPEECH_MESSAGE)
 

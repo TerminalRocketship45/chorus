@@ -28,10 +28,10 @@ The one labelled corpus available is speechocean762, whose speakers are all
 Mandarin-L1, so only the Mandarin rules are measured. On its full test split
 (2,500 recordings, 15,967 words), with the settings this app ships (Whisper
 small.en, beam search 5, same-sound and digit-context rules, silence
-filtering and volume normalisation), the speech
-recognizer wrongly flags 2,308 of 14,644 words the experts marked correct
-(15.8%). The accent filter withdrew 65 of those false flags (2.8%, 95% CI
-2.1% to 3.5%) and kept 963 of 974 flagged genuine errors (98.9%, 95% CI 98.1%
+filtering, volume normalisation, scoring only the words reached), the speech
+recognizer wrongly flags 2,301 of 14,644 words the experts marked correct
+(15.7%). The accent filter withdrew 65 of those false flags (2.8%, 95% CI
+2.1% to 3.6%) and kept 954 of 965 flagged genuine errors (98.9%, 95% CI 98.1%
 to 99.5%). The filter's effect is small: most false flags come from the speech
 recognizer, not from accent. This is a prototype, not a validated assessment
 tool.

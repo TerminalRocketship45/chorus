@@ -22,8 +22,18 @@ by `status`.
 | `extra_nearby` | status `insertion` | the word itself was read **correctly**; mark "an extra word was added nearby". Not a misread |
 | `repeated` | status `repetition` | correct, with a light "repeated" mark (not an error) |
 | `self_corrected` | status `self_correction` | correct, with a positive "fixed it" mark |
+| `not_reached` | status `not_reached`: the trailing run of unread words after the last word the reader was heard to read | plain, **muted** text. Never an error (no underline, no error colour), never in the practice list, not counted in `accent_ok`, and left out of `accuracy`, `total_words` and `correct_words` |
 
 `hesitation` is defined in the engine but never assigned; clients may ignore it.
+
+`not_reached` marks a reader who stopped before the end of the passage (running-record practice:
+words never reached are not errors). Only the trailing run of omissions after the last word that
+was heard (correct, misread, repeated, self-corrected or insertion-marked) is `not_reached`;
+the audio decides: it is `not_reached` only when there is under 0.75 s of speech in the recording
+after the last heard word's end (the reader stopped); if more speech follows, the recogniser lost
+the end of what the reader said and those words stay `skipped`. Omissions before or between heard
+words stay `skipped`, and a recording with nothing heard stays
+all `skipped` (and is rejected, see below). `/api/analyze` always applies this.
 
 The practice list (`practice_words`) is the `misread` and `skipped` words only, de-duplicated, in
 passage order.
@@ -99,7 +109,7 @@ student's).
  "words": [{"index": 0, "expected": "the", "heard": "the", "status": "correct",
             "accent_excused": false, "display": "correct", "start": 0.12, "end": 0.18}],
  "score": {"accuracy": 0.95, "wcpm": 88.2, "total_words": 62, "correct_words": 59,
-           "duration_s": 40.1, "long_pauses": 2},
+           "duration_s": 40.1, "long_pauses": 2, "words_reached": 62, "passage_words": 62},
  "accent_adjusted": {...same shape...} | null,
  "practice_words": ["through"]}
 ```
@@ -107,7 +117,11 @@ student's).
 `session_id` is null when no `student_id` was given (nothing is saved). `home_language` echoes
 the code the client sent (or the student's), whatever its support level, so it may be
 `"english"` or `"hmong"` with `accent_filter_applied: false`; it is null only when no language
-was given at all. `accuracy` is a fraction 0–1. `start`/`end` are seconds into the recording, or null for untimed
+was given at all. `accuracy` is a fraction 0–1. `total_words` and `words_reached` count only the words the reader
+reached (so accuracy is out of those), `passage_words` is the full passage length; they are equal
+unless the reader stopped early. WCPM is words correct per minute of the whole recording.
+Sessions saved before this revision lack `words_reached`/`passage_words`; treat a missing value as
+`total_words`. `start`/`end` are seconds into the recording, or null for untimed
 words. `accent_adjusted` is null when no accent rules apply.
 
 Errors are `{"detail": "..."}` with: 400 bad field / unknown passage or student, 413 recording
@@ -184,12 +198,14 @@ Returns `{"feedback": "<2 to 4 short sentences>", "source": "ai" | "template"}`.
 encouraging, speaks to the reader ("you"), mentions words correct per minute in plain words,
 names at most three practice words (only `misread`/`skipped` words), and never presents an
 accent difference (`accent_ok`) or an `extra_nearby` word as a mistake, never says the reader's
-accent is wrong, and makes no diagnostic claims. When the model is unavailable or its reply
+accent is wrong, and makes no diagnostic claims. If the reader stopped early, it says so neutrally ("You read the first
+24 words") and never calls `not_reached` words mistakes. When the model is unavailable or its reply
 breaks these rules, a template comment is returned with `"source": "template"`. Can take a few
 seconds; the client requests it after showing the results.
 
 ### `POST /api/analyze`: recordings that cannot be scored (422)
 Besides undecodable audio, the endpoint answers 422 with a friendly `detail` when the recording
-peaks below -40 dBFS ("Your recording was very quiet..."), or when fewer than 15% of the passage's
-words were heard as correct or close ("Chorus couldn't hear enough reading. Check the microphone,
+peaks below -40 dBFS ("Your recording was very quiet..."), or when fewer than 15% of the words the reader
+reached (not the whole passage, so a short honest reading of the start of a long passage passes)
+were heard as correct or close, or when fewer than 3 words in all were heard as correct or close ("Chorus couldn't hear enough reading. Check the microphone,
 move closer, and try again."). Show `detail` as is; there is no results page for these.

@@ -23,6 +23,10 @@ class WordStatus(StrEnum):
     REPETITION = "repetition"
     SELF_CORRECTION = "self_correction"
     HESITATION = "hesitation"
+    #: Trailing words after the point where the reader stopped (opt-in, see
+    #: miscue.mark_unreached). Not an error: the reader never got to them. Kept
+    #: out of ERROR_STATUSES and out of every score denominator.
+    NOT_REACHED = "not_reached"
 
 
 #: Statuses that count against reading accuracy.
@@ -71,6 +75,14 @@ class ReadingScore:
     correct_words: int
     duration_s: float
     long_pauses: int
+    words_reached: int | None = None
+    passage_words: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.words_reached is None:
+            self.words_reached = self.total_words
+        if self.passage_words is None:
+            self.passage_words = self.words_reached
 
 
 @dataclass

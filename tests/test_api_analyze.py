@@ -43,6 +43,7 @@ def _fake_analyze_factory(language_seen: list):
                 accent_excused=bool(language),
             ),
             WordResult(index=2, expected="sat", heard=None, status=WordStatus.OMISSION),
+            WordResult(index=3, expected="on", heard="on", status=WordStatus.CORRECT, start=0.3, end=0.4),
         ]
         score = ReadingScore(
             accuracy=2 / 3, wcpm=50.0, total_words=3, correct_words=2, duration_s=2.0, long_pauses=0
@@ -79,7 +80,7 @@ def test_analyze_without_student_or_language(client, monkeypatch):
     assert body["accent_adjusted"] is None
     assert seen == [None]
     assert body["practice_words"] == ["cat", "sat"]
-    assert [w["display"] for w in body["words"]] == ["correct", "misread", "skipped"]
+    assert [w["display"] for w in body["words"]] == ["correct", "misread", "skipped", "correct"]
 
 
 def test_analyze_with_measured_language_applies_accent_filter(client, monkeypatch):
@@ -320,6 +321,7 @@ def test_analyze_default_options_are_the_measured_best(client, monkeypatch):
         "digit_context": True,
         "vad_filter": VAD_EXPECTED,
         "drop_hallucinations": True,
+        "exclude_unreached": True,
     }
 
 
@@ -333,6 +335,7 @@ def test_analyze_options_can_be_overridden_by_env(client, monkeypatch):
         "digit_context": False,
         "vad_filter": VAD_EXPECTED,
         "drop_hallucinations": True,
+        "exclude_unreached": True,
     }
 
 

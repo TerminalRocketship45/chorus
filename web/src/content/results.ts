@@ -3,7 +3,7 @@
  * the pending GPU re-evaluation without hunting through the app.
  *
  * Source: the full speechocean762 test split (Whisper small.en, beam search 5,
- * same-sound and digit-context rules, silence filtering and volume normalisation),
+ * same-sound and digit-context rules, silence filtering, volume normalisation and scoring only the words reached),
  * Mandarin-L1 speakers only: 2,500 recordings,
  * 15,967 words.
  * Do not restate these numbers anywhere else in the app; import them from here.
@@ -14,23 +14,23 @@ export const MEASURED_RESULT = {
   corpusWords: 15967,
   asrModel: "Whisper small.en",
   decoding: "beam search (width 5)",
-  extraRules: "same-sound and digit-context rules, silence filtering and volume normalisation",
+  extraRules: "same-sound and digit-context rules, silence filtering, volume normalisation and scoring only the words reached",
   split: "full test split",
   language: "Mandarin",
 
   /** Expert-correct words the recognizer wrongly flagged, before the accent filter. */
   expertCorrectWords: 14644,
-  falseFlagsBaseline: 2308,
-  falseFlagsBaselinePct: 15.8,
+  falseFlagsBaseline: 2301,
+  falseFlagsBaselinePct: 15.7,
   /** Of those false flags, the ones the accent filter withdrew. */
   falseFlagsWithdrawn: 65,
   falseFlagsWithdrawnPct: 2.8,
   falseFlagsWithdrawnCiLowPct: 2.1,
-  falseFlagsWithdrawnCiHighPct: 3.5,
+  falseFlagsWithdrawnCiHighPct: 3.6,
 
   /** Expert-mispronounced words flagged before filtering, and how many stay flagged. */
-  genuineErrorsRetained: 963,
-  genuineErrorsTotal: 974,
+  genuineErrorsRetained: 954,
+  genuineErrorsTotal: 965,
   genuineErrorsRetainedPct: 98.9,
   genuineErrorsRetainedCiLowPct: 98.1,
   genuineErrorsRetainedCiHighPct: 99.5,
@@ -38,13 +38,13 @@ export const MEASURED_RESULT = {
 
 export const MEASURED_RESULT_CONFIG =
   "Configuration: Whisper small.en speech recognition with beam search (width 5), plus " +
-  "same-sound and digit-context rules, silence filtering and volume normalisation, run on the full speechocean762 test split: " +
+  "same-sound and digit-context rules, silence filtering, volume normalisation and scoring only the words reached, run on the full speechocean762 test split: " +
   "2,500 recordings, 15,967 words, Mandarin-L1 speakers only.";
 
 export const MEASURED_RESULT_HEADLINE =
-  "The speech recognizer wrongly flagged 2,308 of 14,644 expert-correct words (15.8%). " +
-  "The accent filter withdrew 65 of those false flags (2.8%, 95% CI 2.1%–3.5%) " +
-  "while keeping 963 of 974 flagged genuine errors (98.9%, 95% CI 98.1%–99.5%).";
+  "The speech recognizer wrongly flagged 2,301 of 14,644 expert-correct words (15.7%). " +
+  "The accent filter withdrew 65 of those false flags (2.8%, 95% CI 2.1%–3.6%) " +
+  "while keeping 954 of 965 flagged genuine errors (98.9%, 95% CI 98.1%–99.5%).";
 
 export const MEASURED_RESULT_WHY_SMALL =
   "The effect is small because the speech recognizer, not the accent rules, " +

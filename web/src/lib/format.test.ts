@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatAccuracyPct, formatElapsed, formatWcpm } from "./format";
+import { formatAccuracyPct, formatElapsed, formatWcpm, formatWordsReached } from "./format";
 
 describe("formatAccuracyPct", () => {
   it("converts a 0-1 fraction to a rounded whole-number percentage", () => {
@@ -20,5 +20,15 @@ describe("formatElapsed", () => {
     expect(formatElapsed(0)).toBe("0:00");
     expect(formatElapsed(65)).toBe("1:05");
     expect(formatElapsed(120)).toBe("2:00");
+  });
+});
+
+describe("formatWordsReached", () => {
+  it("says how far the reader got when they stopped early", () => {
+    expect(formatWordsReached({ words_reached: 24, passage_words: 128 })).toBe("You read 24 of 128 words");
+  });
+  it("is silent for a full read and for old sessions without the fields", () => {
+    expect(formatWordsReached({ words_reached: 62, passage_words: 62 })).toBeNull();
+    expect(formatWordsReached({})).toBeNull();
   });
 });

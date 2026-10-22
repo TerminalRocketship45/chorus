@@ -254,6 +254,9 @@ def build_records(
     vad_filter: bool = False,
     drop_hallucinations: bool = False,
     normalize_peak: bool = False,
+    exclude_unreached: bool = False,
+    tail_cache_path: Path | None = None,
+    max_tail_speech_s: float = 0.75,
     save_every: int = 25,
     return_info: bool = False,
 ):
@@ -266,9 +269,12 @@ def build_records(
     the corpus word list (which would attach expert scores to the wrong words).
     """
     import chorus.asr as asr
-    from chorus.miscue import detect_miscues
+    from chorus.miscue import detect_miscues, has_trailing_omissions, mark_unreached
+    from chorus.tail import MAX_TAIL_SPEECH_S  # noqa: F401
 
     cache = _load_cache(cache_path)
+    tails: dict = _load_cache(tail_cache_path)  # uttid -> seconds of speech after last heard word
+    tail_candidates: list[dict] = []
     records: list[WordRecord] = []
     skipped = 0
     reasons: list[str] = []
@@ -309,6 +315,21 @@ def build_records(
                 normalize(cache[key], digit_context=expected_tokens if digit_context else None),
                 **({"same_sound": True} if same_sound else {}),
             )
+            tail = None
+            had_tail = exclude_unreached and has_trailing_omissions(results)
+            if had_tail:
+                if key not in tails:
+                    wav = audio_index.get(key)
+                    if wav is None:
+                        skip(f"{u.uttid}: no audio in index for tail check")
+                        continue
+                    aligned = pipeline.attach_alignment(wav, expected_tokens, results)
+                    tails[key] = pipeline.tail_speech_s(wav, aligned)
+                    _save_cache(tail_cache_path, tails)
+                tail = tails[key]
+                trailing = [r.index for r in results if r.index > max(
+                    i.index for i in results if i.status is not WordStatus.OMISSION)]
+                mark_unreached(results, tail, max_tail_speech_s)
             if len(results) != len(u.words):
                 skip(f"{u.uttid}: {len(results)} tokens vs {len(u.words)} corpus words")
                 continue
@@ -321,6 +342,11 @@ def build_records(
             if bad:
                 skip(bad)
                 continue
+            if had_tail:
+                tail_candidates.append({
+                    "uttid": u.uttid, "tail_s": tail,
+                    "expert": [float(u.words[i].get("accuracy", 0.0)) for i in trailing],
+                })
             for res, word in zip(results, u.words):
                 records.append(
                     WordRecord(
@@ -334,7 +360,8 @@ def build_records(
     finally:
         _save_cache(cache_path, cache)
     if return_info:
-        return records, {"skipped": skipped, "skip_reasons": reasons}
+        return records, {"skipped": skipped, "skip_reasons": reasons,
+                         "tail_candidates": tail_candidates}
     return records
 
 
@@ -429,6 +456,17 @@ def summarise(records: list[WordRecord], language: str, seed: int, n_boot: int =
             "expert_correct": n_correct,
         },
         "false_flags_by_status": by_status_out,
+        # Words marked NOT_REACHED (only with --exclude-unreached). The mispronounced ones
+        # are genuine errors the change would have counted as omissions and now hides.
+        "not_reached_words": sum(r.status is WordStatus.NOT_REACHED for r in records),
+        "not_reached_expert_correct": sum(
+            r.status is WordStatus.NOT_REACHED and r.expert_accuracy >= EXPERT_CORRECT
+            for r in records
+        ),
+        "not_reached_expert_mispronounced": sum(
+            r.status is WordStatus.NOT_REACHED and r.expert_accuracy < EXPERT_CORRECT
+            for r in records
+        ),
         # The two digit fields below are now a regression indicator for
         # miscue.normalize: they should stay near 0 for integers 0-999.
         "digit_rendering_false_flags": digit_fps,
@@ -471,6 +509,23 @@ def summarise(records: list[WordRecord], language: str, seed: int, n_boot: int =
     }
 
 
+def _tail_sweep(cands: list[dict], thresholds=(0.25, 0.5, 0.75, 1.0, 1.5, 2.0)) -> list[dict]:
+    """For each speech-after-last-word threshold: how many trailing omissions would become
+    not_reached, split by expert judgement. Unknown tails (None) are never marked."""
+    out = []
+    for th in thresholds:
+        marked = [c for c in cands if c["tail_s"] is not None and c["tail_s"] < th]
+        ex = [a for c in marked for a in c["expert"]]
+        out.append({
+            "max_tail_speech_s": th,
+            "utterances": len(marked),
+            "not_reached_words": len(ex),
+            "expert_correct": sum(a >= EXPERT_CORRECT for a in ex),
+            "expert_mispronounced": sum(a < EXPERT_CORRECT for a in ex),
+        })
+    return out
+
+
 def split_ids(split: str) -> list[str]:
     """Utterance ids of a corpus split directory (``test`` or ``train``)."""
     from eval.fetch_speechocean import DEFAULT_DEST
@@ -506,6 +561,12 @@ def main(argv: list[str] | None = None) -> None:
                     help="Silero VAD before decoding (faster-whisper vad_filter)")
     ap.add_argument("--drop-hallucinations", action="store_true",
                     help="drop segments with high no_speech_prob and low avg_logprob")
+    ap.add_argument("--exclude-unreached", action="store_true",
+                    help="mark the trailing run of omissions after the last heard word as "
+                         "NOT_REACHED (not an error), as the app does")
+    ap.add_argument("--max-tail-speech", type=float, default=0.75,
+                    help="with --exclude-unreached: seconds of speech allowed after the last "
+                         "heard word for the reader to count as having stopped")
     ap.add_argument("--normalize-peak", action="store_true",
                     help="peak-normalise quiet audio to -3 dBFS first, as the app does")
     args = ap.parse_args(argv)
@@ -525,13 +586,17 @@ def main(argv: list[str] | None = None) -> None:
         args.model, args.beam_size, args.prompt_passage, vad_filter=args.vad_filter,
         drop_hallucinations=args.drop_hallucinations, normalize_peak=args.normalize_peak,
     )
+    tail_cache_path = (
+        cache_path.with_name(cache_path.stem + "_tail2.json") if args.exclude_unreached else None
+    )
     records, info = build_records(
         utterances, audio_index, model_size=args.model,
         cache_path=cache_path, return_info=True,
         beam_size=args.beam_size, same_sound=args.same_sound,
         prompt_passage=args.prompt_passage, digit_context=args.digit_context,
         vad_filter=args.vad_filter, drop_hallucinations=args.drop_hallucinations,
-        normalize_peak=args.normalize_peak,
+        normalize_peak=args.normalize_peak, exclude_unreached=args.exclude_unreached,
+        tail_cache_path=tail_cache_path, max_tail_speech_s=args.max_tail_speech,
     )
     if not records:
         raise RuntimeError(
@@ -545,8 +610,9 @@ def main(argv: list[str] | None = None) -> None:
         beam_size=args.beam_size, same_sound=args.same_sound,
         prompt_passage=args.prompt_passage, digit_context=args.digit_context,
         vad_filter=args.vad_filter, drop_hallucinations=args.drop_hallucinations,
-        normalize_peak=args.normalize_peak,
-        transcript_cache=cache_path.name,
+        normalize_peak=args.normalize_peak, exclude_unreached=args.exclude_unreached,
+        transcript_cache=cache_path.name, max_tail_speech_s=args.max_tail_speech,
+        tail_sweep=_tail_sweep(info["tail_candidates"]) if args.exclude_unreached else None,
         split="test", sampled_ids=len(chosen),
         skipped_utterances=info["skipped"], skip_reasons=info["skip_reasons"],
         missing_from_scores=len(missing_scores), missing_audio=len(missing_audio),

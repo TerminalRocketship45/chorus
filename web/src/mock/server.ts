@@ -7,6 +7,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import {
   MOCK_ANALYZE_NO_ACCENT,
+  MOCK_ANALYZE_STOPPED_EARLY,
   MOCK_TOPIC_TEXT,
   MOCK_ANALYZE_WITH_ACCENT,
   MOCK_LANGUAGES,
@@ -299,6 +300,10 @@ export async function handleMockRequest(
     }
 
     await new Promise((resolve) => setTimeout(resolve, 400));
+    if (passageId === "mock-early") {
+      sendJson(res, 200, { ...MOCK_ANALYZE_STOPPED_EARLY, session_id: null });
+      return true;
+    }
     if (studentId && passageId) {
       const sid = Number(studentId);
       const passage = findPassage(passageId);

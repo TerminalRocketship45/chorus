@@ -231,6 +231,21 @@ Passage prompting (giving Whisper the passage as `initial_prompt`) was tested an
 
 The app defaults are small.en, beam 5, same-sound on, digit-context on (`CHORUS_ASR_MODEL`, `CHORUS_BEAM_SIZE=5`, `CHORUS_SAME_SOUND=1`, `CHORUS_DIGIT_CONTEXT=1` in the Dockerfile and `deploy/hf_gradio/app.py`; the API reads them per request). Set `CHORUS_ASR_MODEL=base.en` and/or `CHORUS_BEAM_SIZE=1` if analysis is too slow. The accent filter itself is unchanged and still withdraws only about 3% of false flags.
 
+### Readings that stop early (2,500 utterances, GPU)
+
+The app scores only the words a reader reached: a trailing run of omitted words is marked
+`not_reached` (not an error) when the recording is essentially silent after the last heard word
+(under 0.75 s of speech), the last heard word was not a substitution, and its aligned span is not
+implausibly long (which signals the recognizer dropped the end). Measured with the shipped
+settings (`eval/results_small.en_beam5_samesound_digitctx_allguards_unreached.json`): false flags
+on expert-correct words 2,308 -> 2,301 of 14,644; genuine errors flagged 974 -> 965. Cost: 9
+expert-mispronounced words in this corpus became `not_reached` and are no longer flagged (cases
+where the recognizer lost the end of a sentence and the audio after it was quiet). A first
+version without the audio check hid 48 and was rejected. With these settings the accent filter
+withdrew 65 of 2,301 false flags (2.8%, 95% CI 2.1% to 3.6%) and kept 954 of 965 flagged genuine
+errors (98.9%, 95% CI 98.1% to 99.5%). A reading is rejected as "couldn't hear enough" when fewer
+than 3 words, or under 15% of the words reached, were heard.
+
 ## Known limitations and deferred items
 
 None of these are working; do not treat them as such.

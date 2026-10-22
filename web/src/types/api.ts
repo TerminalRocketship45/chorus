@@ -60,7 +60,8 @@ export type WordStatus =
   | "insertion"
   | "repetition"
   | "self_correction"
-  | "hesitation";
+  | "hesitation"
+  | "not_reached";
 
 /**
  * Display status. Every client renders words by THIS field, never by
@@ -77,7 +78,8 @@ export type WordDisplay =
   | "skipped"
   | "extra_nearby"
   | "repeated"
-  | "self_corrected";
+  | "self_corrected"
+  | "not_reached";
 
 export interface WordResult {
   index: number;
@@ -98,6 +100,10 @@ export interface ReadingScore {
   correct_words: number;
   duration_s: number;
   long_pauses: number;
+  /** Words the reader reached; total_words and accuracy are out of these. Missing on old saved sessions. */
+  words_reached?: number;
+  /** Full passage length. Missing on old saved sessions. */
+  passage_words?: number;
 }
 
 export interface AnalyzeResponse {

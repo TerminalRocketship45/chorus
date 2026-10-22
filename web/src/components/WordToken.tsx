@@ -28,6 +28,7 @@ export const WordToken = memo(function WordToken({ word, selected, current = fal
   let ariaLabel = word.expected;
   if (visual.className === "misread") ariaLabel = `${word.expected}, tricky word`;
   if (visual.className === "skipped") ariaLabel = `${word.expected}, skipped`;
+  if (visual.className === "unreached") ariaLabel = `${word.expected}, not reached`;
   if (visual.markerLabel) ariaLabel = `${word.expected}, ${visual.markerLabel}`;
 
   return (

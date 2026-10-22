@@ -101,3 +101,10 @@ def test_accent_ok_count_counts_only_excused_substitutions():
         ),
     ]
     assert accent_ok_count(words) == 2
+
+
+def test_not_reached_displays_not_reached_and_is_never_practised():
+    w = _word(WordStatus.NOT_REACHED, expected="mats", heard=None)
+    assert word_display(w) == "not_reached"
+    assert practice_words([w]) == []
+    assert accent_ok_count([w]) == 0

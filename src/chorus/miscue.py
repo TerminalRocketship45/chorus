@@ -205,3 +205,54 @@ def _nearest_expected(
         if 0 <= idx < len(results) and results[idx].expected == token:
             return results[idx]
     return None
+
+
+def mark_unreached(
+    words: list[WordResult],
+    speech_after_last_s: float | None,
+    max_speech_s: float = 0.75,
+) -> list[WordResult]:
+    """Mark the trailing run of OMISSION words as NOT_REACHED (in place, returned).
+
+    A reader who stops early has not made errors on the words after the stopping
+    point (running-record practice). The stopping point is the last word with any
+    status other than OMISSION (correct, substitution, self-correction, repetition,
+    insertion-marked). Leading and middle omissions stay OMISSION. If nothing was
+    heard at all, nothing is marked, so silence is still all omissions.
+
+    `speech_after_last_s` is the seconds of speech in the AUDIO after that last
+    heard word (see chorus.tail.speech_after). The reader only counts as having
+    stopped when it is below `max_speech_s`; if more speech follows, the
+    recogniser lost the end of what the reader said and the omissions stay
+    errors. None (unknown, e.g. the last word could not be timed) also keeps
+    them as errors.
+
+    The stopping point must also be trustworthy: if the last heard word is a
+    SUBSTITUTION the recogniser's end of the recording is garbled, so we cannot
+    tell a reader who stopped from one whose last words were mangled (measured
+    on speechocean762: most "stopped" readings that hid expert-flagged words
+    ended in a substitution). The omissions then stay errors.
+    """
+    if speech_after_last_s is None or speech_after_last_s >= max_speech_s:
+        return words
+    last = max(
+        (w.index for w in words if w.status is not WordStatus.OMISSION), default=None
+    )
+    if last is None or words[last].status is WordStatus.SUBSTITUTION:
+        return words
+    for w in words:
+        if w.index > last and w.status is WordStatus.OMISSION:
+            w.status = WordStatus.NOT_REACHED
+    return words
+
+
+def last_heard_index(words: list[WordResult]) -> int | None:
+    """Index of the last word with a status other than OMISSION, or None."""
+    return max((w.index for w in words if w.status is not WordStatus.OMISSION), default=None)
+
+
+def has_trailing_omissions(words: list[WordResult]) -> bool:
+    last = last_heard_index(words)
+    return last is not None and any(
+        w.index > last and w.status is WordStatus.OMISSION for w in words
+    )

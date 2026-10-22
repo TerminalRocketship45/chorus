@@ -927,6 +927,12 @@ button.row:active {
   text-decoration-color: var(--word-skipped-line);
 }
 
+/* Words the reader stopped before: muted, no underline, no error colour. */
+.word--unreached {
+  color: var(--label-3);
+  text-decoration: none;
+}
+
 .word--sample {
   min-height: 0;
   padding: 1px 6px;

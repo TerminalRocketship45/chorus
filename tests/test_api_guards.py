@@ -170,10 +170,19 @@ def test_invented_text_from_silence_is_rejected(client, monkeypatch):
 
 
 def test_reading_with_many_errors_is_still_scored(client, monkeypatch):
-    words = [W(0, "the", "the", WordStatus.CORRECT)] + [
-        W(i, "word", None, WordStatus.OMISSION) for i in range(1, 6)]
+    # 3 of 20 heard (exactly the 15% floor, and the 3-word minimum): still scored
+    words = [W(i, "word", "word", WordStatus.CORRECT) for i in range(3)] + [
+        W(i, "word", None, WordStatus.OMISSION) for i in range(3, 20)]
     r, _ = post(client, monkeypatch, analysis(words, "the"))
     assert r.status_code == 200 and r.json()["transcript"] == "the"
+
+
+def test_one_or_two_stray_words_are_rejected_even_when_most_were_reached(client, monkeypatch):
+    # An early-stop with only 2 words heard: fraction of reached is 100% but 2 < 3 words.
+    words = [W(i, "word", "word", WordStatus.CORRECT) for i in range(2)] + [
+        W(i, "word", None, WordStatus.NOT_REACHED) for i in range(2, 60)]
+    r, _ = post(client, monkeypatch, analysis(words, "word word"))
+    assert r.status_code == 422
 
 
 def test_near_silent_recording_is_rejected_before_analysis(client, monkeypatch, tmp_path):
@@ -191,14 +200,14 @@ def test_quiet_recording_is_normalised_before_transcription(client, monkeypatch,
     p = tmp_path / "quiet.wav"
     x, = [np.sin(2 * np.pi * 200 * np.arange(32000) / 16000) * 0.02]  # -34 dBFS
     write_wav(p, x)
-    words = [W(0, "the", "the", WordStatus.CORRECT)]
+    words = [W(i, "the", "the", WordStatus.CORRECT) for i in range(3)]
     r, seen = post(client, monkeypatch, analysis(words), wav=str(p))
     assert r.status_code == 200
     assert seen["level"]["peak_dbfs"] == pytest.approx(-3.0, abs=0.3)
 
 
 def test_debug_capture_off_by_default(client, monkeypatch, tmp_path):
-    words = [W(0, "the", "the", WordStatus.CORRECT)]
+    words = [W(i, "the", "the", WordStatus.CORRECT) for i in range(3)]
     r, _ = post(client, monkeypatch, analysis(words))
     assert r.status_code == 200
     assert not list(tmp_path.glob("**/*.upload"))
@@ -207,7 +216,7 @@ def test_debug_capture_off_by_default(client, monkeypatch, tmp_path):
 def test_debug_capture_saves_upload_wav_and_json(client, monkeypatch, tmp_path):
     d = tmp_path / "dbg"
     monkeypatch.setenv("CHORUS_DEBUG_AUDIO_DIR", str(d))
-    words = [W(0, "the", "the", WordStatus.CORRECT)]
+    words = [W(i, "the", "the", WordStatus.CORRECT) for i in range(3)]
     r, _ = post(client, monkeypatch, analysis(words, "the"))
     assert r.status_code == 200
     files = sorted(p.suffix for p in d.iterdir())
@@ -230,3 +239,25 @@ def test_debug_capture_also_saves_rejections(client, monkeypatch, tmp_path):
 def test_default_model_is_small_en(monkeypatch):
     monkeypatch.delenv("CHORUS_ASR_MODEL", raising=False)
     assert app_mod._model_size() == "small.en"
+
+
+def test_heard_fraction_ignores_not_reached_words():
+    ws = [W(i, "word", "word", WordStatus.CORRECT) for i in range(3)] + [
+        W(i, "word", None, WordStatus.NOT_REACHED) for i in range(3, 40)]
+    assert _heard_fraction(ws) == 1.0
+
+
+def test_short_honest_reading_of_a_long_passage_is_scored(client, monkeypatch):
+    words = [W(i, "word", "word", WordStatus.CORRECT) for i in range(5)] + [
+        W(i, "word", None, WordStatus.NOT_REACHED) for i in range(5, 60)]
+    r, _ = post(client, monkeypatch, analysis(words, "word word word word word"))
+    assert r.status_code == 200
+    body = r.json()
+    assert body["words"][10]["display"] == "not_reached"
+    assert body["practice_words"] == []
+
+
+def test_silence_is_still_rejected_with_unreached_support(client, monkeypatch):
+    words = [W(i, "word", None, WordStatus.OMISSION) for i in range(60)]
+    r, _ = post(client, monkeypatch, analysis(words, ""))
+    assert r.status_code == 422

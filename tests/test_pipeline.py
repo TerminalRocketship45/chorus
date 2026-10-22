@@ -105,6 +105,25 @@ def test_analyze_skips_alignment_when_no_token_is_alignable(monkeypatch, tmp_pat
     assert all(w.start is None and w.end is None for w in result.words)
 
 
+def test_analyze_exclude_unreached_is_opt_in(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        pipeline, "transcribe",
+        lambda path, model_size="base.en", **kw: Transcript(text="2599 1st", duration_s=6.0),
+    )
+    monkeypatch.setattr(pipeline, "align_words", lambda *a, **k: [])
+    tail = {"v": 0.0}
+    monkeypatch.setattr(pipeline, "tail_speech_s", lambda p, w: tail["v"])
+    text = "2599 1st 2599 1st"
+    off = analyze(tmp_path / "x.wav", text)
+    assert off.score.total_words == 4 and off.score.accuracy == 0.5
+    on = analyze(tmp_path / "x.wav", text, exclude_unreached=True)
+    assert [w.status for w in on.words[2:]] == [WordStatus.NOT_REACHED] * 2
+    assert (on.score.total_words, on.score.passage_words, on.score.accuracy) == (2, 4, 1.0)
+    tail["v"] = 4.0  # the reader kept talking after the last heard word: keep the errors
+    kept = analyze(tmp_path / "x.wav", text, exclude_unreached=True)
+    assert [w.status for w in kept.words[2:]] == [WordStatus.OMISSION] * 2
+
+
 # The slow tests below prove plumbing only. The fixture is a synthetic voice,
 # not a child or an accented reader, so they say nothing about accuracy on
 # real learners.

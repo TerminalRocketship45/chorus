@@ -4,7 +4,7 @@ import type { AnalyzeResponse, Passage, WordResult } from "../types/api";
 import { WordToken } from "../components/WordToken";
 import { Legend } from "../components/Legend";
 import { ScorePanel } from "../components/ScorePanel";
-import { visualForDisplay } from "../lib/display";
+import { hasUnreached, visualForDisplay } from "../lib/display";
 import { Screen } from "../components/Screen";
 import { Icon } from "../components/Icon";
 import { Feedback } from "../components/Feedback";
@@ -210,7 +210,7 @@ export function Results() {
         </section>
       )}
 
-      <Legend />
+      <Legend showUnreached={hasUnreached(words)} />
     </Screen>
   );
 }
