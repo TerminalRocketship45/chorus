@@ -1,11 +1,16 @@
 import type { WordResult } from "../types/api";
-import { visualForDisplay } from "../lib/display";
+import { visualForDisplay, type WordMarker } from "../lib/display";
+import { Icon } from "./Icon";
 
-const MARKER_GLYPH: Record<string, string> = {
-  extra: "➕", // heavy plus sign
-  repeated: "↻", // clockwise open circle arrow
-  fixed: "✓", // check mark
-};
+/** Small drawn marks beside a word. Never the only cue: each also has an aria label. */
+export function MarkerIcon({ marker }: { marker: Exclude<WordMarker, "none"> }) {
+  const name = marker === "extra" ? "caretUp" : marker === "repeated" ? "arrowClockwise" : "check";
+  return (
+    <span className={`word__marker word__marker--${marker}`} aria-hidden="true">
+      <Icon name={name} size={12} strokeWidth={3} />
+    </span>
+  );
+}
 
 interface WordTokenProps {
   word: WordResult;
@@ -31,11 +36,7 @@ export function WordToken({ word, selected, onSelect }: WordTokenProps) {
       onClick={() => onSelect(word)}
     >
       <span>{word.expected}</span>
-      {visual.marker !== "none" && (
-        <span className={`word__marker word__marker--${visual.marker}`} aria-hidden="true">
-          {MARKER_GLYPH[visual.marker]}
-        </span>
-      )}
+      {visual.marker !== "none" && <MarkerIcon marker={visual.marker} />}
     </button>
   );
 }

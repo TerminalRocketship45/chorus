@@ -1,27 +1,23 @@
 import { WORD_LEGEND } from "../lib/display";
-
-const MARKER_GLYPH: Record<string, string> = {
-  extra: "➕",
-  repeated: "↻",
-  fixed: "✓",
-};
+import { MarkerIcon } from "./WordToken";
 
 export function Legend() {
   return (
-    <ul className="legend" aria-label="What the colours and marks mean">
-      {WORD_LEGEND.map((item) => (
-        <li className="legend__item" key={`${item.className}-${item.marker}`}>
-          <span className={`word word--${item.className}`} aria-hidden="true" style={{ cursor: "default" }}>
-            word
-            {item.marker !== "none" && (
-              <span className={`word__marker word__marker--${item.marker}`}>
-                {MARKER_GLYPH[item.marker]}
-              </span>
-            )}
-          </span>
-          <span>{item.label}</span>
-        </li>
-      ))}
-    </ul>
+    <section className="section" aria-labelledby="legend-title">
+      <h2 className="section__title" id="legend-title" style={{ padding: "0 16px" }}>
+        What the marks mean
+      </h2>
+      <ul className="group legend" aria-label="What the colours and marks mean">
+        {WORD_LEGEND.map((item) => (
+          <li className="legend__item" key={`${item.className}-${item.marker}`}>
+            <span className={`word word--sample word--${item.className}`} aria-hidden="true">
+              word
+              {item.marker !== "none" && <MarkerIcon marker={item.marker} />}
+            </span>
+            <span>{item.label}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

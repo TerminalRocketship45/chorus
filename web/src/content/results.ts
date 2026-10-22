@@ -2,54 +2,57 @@
  * Measured accent-filter results, in ONE place so they can be updated after
  * the pending GPU re-evaluation without hunting through the app.
  *
- * Source: SETUP.md "Current measured result" / eval/results.json
- * (base.en, seed 0, Mandarin, 500 utterances from the speechocean762 test
- * split, 3,219 words, 0 utterances skipped). Do not restate these numbers
- * anywhere else in the app — import them from here.
+ * Source: the full speechocean762 test split (Whisper small.en, beam search 5,
+ * same-sound and digit-context rules), Mandarin-L1 speakers only: 2,500 recordings,
+ * 15,967 words.
+ * Do not restate these numbers anywhere else in the app; import them from here.
  */
 export const MEASURED_RESULT = {
   corpusName: "speechocean762",
-  corpusUtterances: 500,
-  corpusWords: 3219,
-  asrModel: "base.en",
-  device: "CPU",
+  corpusUtterances: 2500,
+  corpusWords: 15967,
+  asrModel: "Whisper small.en",
+  decoding: "beam search (width 5)",
+  extraRules: "same-sound and digit-context rules",
+  split: "full test split",
   language: "Mandarin",
 
-  /** False error flags on expert-correct words that the filter withdrew. */
-  falseFlagsWithdrawn: 14,
-  falseFlagsBaseline: 645,
-  falseFlagsWithdrawnPct: 2.2,
-  falseFlagsWithdrawnCiLowPct: 1.1,
-  falseFlagsWithdrawnCiHighPct: 3.4,
+  /** Expert-correct words the recognizer wrongly flagged, before the accent filter. */
+  expertCorrectWords: 14644,
+  falseFlagsBaseline: 2318,
+  falseFlagsBaselinePct: 15.8,
+  /** Of those false flags, the ones the accent filter withdrew. */
+  falseFlagsWithdrawn: 71,
+  falseFlagsWithdrawnPct: 3.1,
+  falseFlagsWithdrawnCiLowPct: 2.4,
+  falseFlagsWithdrawnCiHighPct: 3.8,
 
-  /** Expert-mispronounced words still flagged after filtering. */
-  genuineErrorsRetained: 233,
-  genuineErrorsTotal: 239,
-  genuineErrorsRetainedPct: 97.5,
-  genuineErrorsRetainedCiLowPct: 95.4,
-  genuineErrorsRetainedCiHighPct: 99.2,
-
-  /** Of the 645 baseline false flags, the breakdown by raw status. */
-  falseFlagsByStatus: {
-    substitution: 520,
-    omission: 48,
-    insertion: 77,
-  },
-
-  bootstrapResamples: 1000,
+  /** Expert-mispronounced words flagged before filtering, and how many stay flagged. */
+  genuineErrorsRetained: 956,
+  genuineErrorsTotal: 974,
+  genuineErrorsRetainedPct: 98.2,
+  genuineErrorsRetainedCiLowPct: 97.3,
+  genuineErrorsRetainedCiHighPct: 98.9,
 } as const;
 
+export const MEASURED_RESULT_CONFIG =
+  "Configuration: Whisper small.en speech recognition with beam search (width 5), plus " +
+  "same-sound and digit-context rules, run on the full speechocean762 test split: " +
+  "2,500 recordings, 15,967 words, Mandarin-L1 speakers only.";
+
 export const MEASURED_RESULT_HEADLINE =
-  "On 500 Mandarin-L1 recordings from the speechocean762 corpus, the accent " +
-  "filter withdrew 2.2% of false error flags (14 of 645, 95% CI 1.1%–3.4%) " +
-  "while keeping 97.5% of genuine errors flagged (233 of 239, 95% CI " +
-  "95.4%–99.2%).";
+  "The speech recognizer wrongly flagged 2,318 of 14,644 expert-correct words (15.8%). " +
+  "The accent filter withdrew 71 of those false flags (3.1%, 95% CI 2.4%–3.8%) " +
+  "while keeping 956 of 974 flagged genuine errors (98.2%, 95% CI 97.3%–98.9%).";
 
 export const MEASURED_RESULT_WHY_SMALL =
   "The effect is small because the speech recognizer, not the accent rules, " +
   "sets the ceiling: most of what it over-flags is not accent-shaped at all " +
   "(a word the recognizer mangled, dropped, or added), so there is only a " +
   "small slice of error that an accent filter can touch in the first place.";
+
+export const MEASURED_RESULT_REJECTED_IDEA =
+  "We also tested showing the recognizer the passage text, and rejected it because it hid real reading mistakes.";
 
 export const LANGUAGE_RULE_STATUS = {
   measured: "Mandarin is the only language checked against expert ratings, because the " +
@@ -67,7 +70,7 @@ export const CREDITS = [
   {
     name: "speechocean762",
     detail:
-      "500 non-native English utterances used to measure the accent filter, " +
+      "2,500 non-native English recordings used to measure the accent filter, " +
       "licensed CC BY 4.0 via OpenSLR.",
     url: "https://www.openslr.org/101/",
   },

@@ -7,15 +7,65 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import {
   MOCK_ANALYZE_NO_ACCENT,
+  MOCK_GENERATED,
+  MOCK_INTERESTS,
   MOCK_ANALYZE_WITH_ACCENT,
   MOCK_LANGUAGES,
   MOCK_PASSAGES,
   MOCK_STUDENTS,
   MOCK_STUDENT_DETAILS,
 } from "./fixtures";
-import type { GradeBand, Student } from "../types/api";
+import type { GradeBand, Passage, PassageProgress, Student } from "../types/api";
 
 let nextStudentId = 1000;
+let nextGeneratedId = 1;
+let generateCalls = 0;
+
+/** Passages written so far (any student or none), so GET /api/passages/g-N works. */
+const generated = new Map<string, Passage>();
+/** Per-student passage progress, newest first, for GET /api/students/{id}/passages. */
+const studentRows = new Map<number, PassageProgress[]>();
+/** Students created or patched during this dev session. */
+const liveStudents = new Map<number, Student>();
+
+const INTEREST_CODES = new Set(MOCK_INTERESTS.map((i) => i.code));
+
+function findPassage(id: string): Passage | undefined {
+  return MOCK_PASSAGES.find((p) => p.id === id) ?? generated.get(id);
+}
+
+function findStudent(id: number): Student | undefined {
+  return liveStudents.get(id) ?? MOCK_STUDENTS.find((s) => s.id === id);
+}
+
+function rowsFor(id: number): PassageProgress[] {
+  let rows = studentRows.get(id);
+  if (!rows) {
+    rows = [];
+    const detail = MOCK_STUDENT_DETAILS[id];
+    if (detail) {
+      // Seed from the fixture sessions: newest first, one row per passage.
+      for (const session of [...detail.sessions].reverse()) {
+        const passage = findPassage(session.passage_id);
+        if (!passage || rows.some((r) => r.passage.id === passage.id)) continue;
+        const attempts = detail.sessions.filter((x) => x.passage_id === passage.id).length;
+        rows.push({
+          passage,
+          read: true,
+          attempts,
+          last_result: {
+            accuracy: session.score.accuracy,
+            accent_adjusted_accuracy: session.accent_adjusted ? session.accent_adjusted.accuracy : null,
+            wcpm: session.score.wcpm,
+            at: session.created_at,
+          },
+        });
+      }
+    }
+    studentRows.set(id, rows);
+  }
+  return rows;
+}
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
   const text = JSON.stringify(body);
@@ -67,7 +117,7 @@ export async function handleMockRequest(
 
   if (method === "GET" && /^\/api\/passages\/[^/]+$/.test(path)) {
     const id = decodeURIComponent(path.slice("/api/passages/".length));
-    const found = MOCK_PASSAGES.find((p) => p.id === id);
+    const found = findPassage(id);
     if (!found) {
       sendJson(res, 404, { detail: `unknown passage_id: '${id}'` });
       return true;
@@ -76,25 +126,139 @@ export async function handleMockRequest(
     return true;
   }
 
+  if (method === "GET" && path === "/api/interests") {
+    sendJson(res, 200, MOCK_INTERESTS);
+    return true;
+  }
+
+  if (method === "POST" && path === "/api/passages/generate") {
+    const raw = await readBody(req);
+    let body: { band?: string; interests?: string[]; student_id?: number | null; exclude_ids?: string[] } = {};
+    try {
+      body = JSON.parse(raw.toString("utf-8"));
+    } catch {
+      sendJson(res, 400, { detail: "Body must be JSON." });
+      return true;
+    }
+    if (body.band !== "elementary" && body.band !== "secondary") {
+      sendJson(res, 400, { detail: `unknown band: '${String(body.band)}'` });
+      return true;
+    }
+    const interests = body.interests ?? [];
+    const unknown = interests.find((c) => !INTEREST_CODES.has(c));
+    if (unknown) {
+      sendJson(res, 400, { detail: `unknown interest: '${unknown}'` });
+      return true;
+    }
+    const exclude = new Set(body.exclude_ids ?? []);
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    generateCalls += 1;
+    let passage: Passage | null = null;
+
+    // Every third call behaves like the "model unavailable" fallback: a library passage.
+    if (generateCalls % 3 === 0) {
+      const candidates = MOCK_PASSAGES.filter((p) => p.band === body.band && !exclude.has(p.id));
+      passage = candidates.find((p) => interests.includes(p.topic)) ?? candidates[0] ?? null;
+    }
+    if (!passage) {
+      const pool = MOCK_GENERATED[body.band];
+      const codes = interests.length > 0 ? interests : Object.keys(pool);
+      const code = codes[(generateCalls - 1) % codes.length];
+      const draft = pool[code] ?? pool.animals;
+      const id = `g-${nextGeneratedId++}`;
+      passage = {
+        id,
+        title: draft.title,
+        band: body.band,
+        level: 2,
+        topic: code,
+        word_count: draft.text.split(/\s+/).length,
+        text: draft.text,
+        source: "ai",
+      };
+      generated.set(id, passage);
+    }
+    if (typeof body.student_id === "number") {
+      const rows = rowsFor(body.student_id);
+      if (!rows.some((r) => r.passage.id === passage!.id)) {
+        rows.unshift({ passage, read: false, attempts: 0, last_result: null });
+      }
+    }
+    sendJson(res, 201, passage);
+    return true;
+  }
+
   if (method === "GET" && path === "/api/students") {
-    sendJson(res, 200, MOCK_STUDENTS);
+    const created = [...liveStudents.values()].filter((s) => !MOCK_STUDENTS.some((m) => m.id === s.id));
+    sendJson(res, 200, [
+      ...MOCK_STUDENTS.map((m) => ({ ...m, ...(liveStudents.get(m.id) ?? {}) })),
+      ...created.map((s) => ({ ...s, session_count: 0, last_session_at: null, last_wcpm: null })),
+    ]);
+    return true;
+  }
+
+  if (method === "GET" && /^\/api\/students\/\d+\/passages$/.test(path)) {
+    const id = Number(path.split("/")[3]);
+    if (!findStudent(id)) {
+      sendJson(res, 404, { detail: "Student not found." });
+      return true;
+    }
+    sendJson(res, 200, rowsFor(id));
+    return true;
+  }
+
+  if (method === "PATCH" && /^\/api\/students\/\d+$/.test(path)) {
+    const id = Number(path.split("/").pop());
+    const current = findStudent(id);
+    if (!current) {
+      sendJson(res, 404, { detail: "Student not found." });
+      return true;
+    }
+    const raw = await readBody(req);
+    let patch: Partial<Student> = {};
+    try {
+      patch = JSON.parse(raw.toString("utf-8"));
+    } catch {
+      sendJson(res, 400, { detail: "Body must be JSON." });
+      return true;
+    }
+    if (patch.interests && patch.interests.some((c) => !INTEREST_CODES.has(c))) {
+      sendJson(res, 400, { detail: "unknown interest code." });
+      return true;
+    }
+    const updated: Student = {
+      ...current,
+      ...(patch.name !== undefined ? { name: patch.name } : {}),
+      ...(patch.grade_band !== undefined ? { grade_band: patch.grade_band } : {}),
+      ...(patch.home_language !== undefined ? { home_language: patch.home_language } : {}),
+      ...(patch.interests !== undefined ? { interests: patch.interests } : {}),
+    };
+    liveStudents.set(id, updated);
+    sendJson(res, 200, updated);
     return true;
   }
 
   if (method === "GET" && /^\/api\/students\/\d+$/.test(path)) {
     const id = Number(path.split("/").pop());
     const detail = MOCK_STUDENT_DETAILS[id];
-    if (!detail) {
+    const live = liveStudents.get(id);
+    if (!detail && !live) {
       sendJson(res, 404, { detail: "Student not found." });
       return true;
     }
-    sendJson(res, 200, detail);
+    sendJson(
+      res,
+      200,
+      detail
+        ? { ...detail, student: live ?? detail.student }
+        : { student: live, sessions: [], most_missed: [] }
+    );
     return true;
   }
 
   if (method === "POST" && path === "/api/students") {
     const raw = await readBody(req);
-    let payload: { name?: string; grade_band?: GradeBand; home_language?: string } = {};
+    let payload: { name?: string; grade_band?: GradeBand; home_language?: string; interests?: string[] } = {};
     try {
       payload = JSON.parse(raw.toString("utf-8"));
     } catch {
@@ -105,13 +269,20 @@ export async function handleMockRequest(
       sendJson(res, 400, { detail: "name, grade_band and home_language are required." });
       return true;
     }
+    const interests = payload.interests ?? [];
+    if (interests.some((c) => !INTEREST_CODES.has(c))) {
+      sendJson(res, 400, { detail: "unknown interest code." });
+      return true;
+    }
     const student: Student = {
       id: nextStudentId++,
       name: payload.name,
       grade_band: payload.grade_band,
       home_language: payload.home_language,
+      interests,
       created_at: new Date().toISOString(),
     };
+    liveStudents.set(student.id, student);
     sendJson(res, 201, student);
     return true;
   }
@@ -139,6 +310,27 @@ export async function handleMockRequest(
     }
 
     await new Promise((resolve) => setTimeout(resolve, 400));
+    if (studentId && passageId) {
+      const sid = Number(studentId);
+      const passage = findPassage(passageId);
+      if (passage) {
+        const rows = rowsFor(sid);
+        const f = homeLanguage === "english" ? MOCK_ANALYZE_NO_ACCENT : MOCK_ANALYZE_WITH_ACCENT;
+        const prev = rows.find((r) => r.passage.id === passage.id);
+        const entry: PassageProgress = {
+          passage,
+          read: true,
+          attempts: (prev?.attempts ?? 0) + 1,
+          last_result: {
+            accuracy: f.score.accuracy,
+            accent_adjusted_accuracy: f.accent_adjusted ? f.accent_adjusted.accuracy : null,
+            wcpm: f.score.wcpm,
+            at: new Date().toISOString(),
+          },
+        };
+        studentRows.set(sid, [entry, ...rows.filter((r) => r.passage.id !== passage.id)]);
+      }
+    }
     const fixture = homeLanguage === "english" ? MOCK_ANALYZE_NO_ACCENT : MOCK_ANALYZE_WITH_ACCENT;
     // docs/api.md: home_language echoes the code the client sent, and is null
     // only when none was given at all; session_id is null unless a

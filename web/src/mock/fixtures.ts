@@ -1,5 +1,7 @@
 import type {
   AnalyzeResponse,
+  GradeBand,
+  Interest,
   LanguageOption,
   Passage,
   StudentDetailResponse,
@@ -26,6 +28,7 @@ export const MOCK_PASSAGES: Passage[] = [
     topic: "animals",
     word_count: 11,
     text: "The quick brown fox jumps over the lazy dog again today.",
+    source: "library",
   },
   {
     id: "el-02",
@@ -35,6 +38,7 @@ export const MOCK_PASSAGES: Passage[] = [
     topic: "weather",
     word_count: 8,
     text: "Rain fell softly on the old red roof.",
+    source: "library",
   },
   {
     id: "se-01",
@@ -44,6 +48,7 @@ export const MOCK_PASSAGES: Passage[] = [
     topic: "science",
     word_count: 16,
     text: "Wind turbines and solar panels now provide a growing share of the energy used in homes.",
+    source: "library",
   },
   {
     id: "se-02",
@@ -53,6 +58,7 @@ export const MOCK_PASSAGES: Passage[] = [
     topic: "history",
     word_count: 15,
     text: "After the bridge washed out, the two friends walked twelve miles along the river at dusk.",
+    source: "library",
   },
 ];
 
@@ -138,6 +144,7 @@ export const MOCK_STUDENTS: StudentListItem[] = [
     name: "Amina",
     grade_band: "elementary",
     home_language: "somali",
+    interests: ["animals", "space"],
     created_at: "2026-09-02T14:00:00Z",
     session_count: 4,
     last_session_at: "2026-10-09T15:32:00Z",
@@ -148,6 +155,7 @@ export const MOCK_STUDENTS: StudentListItem[] = [
     name: "Tou",
     grade_band: "elementary",
     home_language: "hmong",
+    interests: ["music"],
     created_at: "2026-09-10T14:00:00Z",
     session_count: 1,
     last_session_at: "2026-09-18T16:05:00Z",
@@ -158,6 +166,7 @@ export const MOCK_STUDENTS: StudentListItem[] = [
     name: "Luis",
     grade_band: "secondary",
     home_language: "spanish",
+    interests: ["sports", "science"],
     created_at: "2026-09-05T14:00:00Z",
     session_count: 2,
     last_session_at: "2026-10-05T13:20:00Z",
@@ -172,7 +181,8 @@ export const MOCK_STUDENT_DETAILS: Record<number, StudentDetailResponse> = {
       name: "Amina",
       grade_band: "elementary",
       home_language: "somali",
-      created_at: "2026-09-02T14:00:00Z",
+      interests: ["animals", "space"],
+    created_at: "2026-09-02T14:00:00Z",
     },
     sessions: [
       {
@@ -227,7 +237,8 @@ export const MOCK_STUDENT_DETAILS: Record<number, StudentDetailResponse> = {
       name: "Tou",
       grade_band: "elementary",
       home_language: "hmong",
-      created_at: "2026-09-10T14:00:00Z",
+      interests: ["music"],
+    created_at: "2026-09-10T14:00:00Z",
     },
     sessions: [
       {
@@ -252,7 +263,8 @@ export const MOCK_STUDENT_DETAILS: Record<number, StudentDetailResponse> = {
       name: "Luis",
       grade_band: "secondary",
       home_language: "spanish",
-      created_at: "2026-09-05T14:00:00Z",
+      interests: ["sports", "science"],
+    created_at: "2026-09-05T14:00:00Z",
     },
     sessions: [
       {
@@ -277,5 +289,47 @@ export const MOCK_STUDENT_DETAILS: Record<number, StudentDetailResponse> = {
       },
     ],
     most_missed: [{ word: "share", count: 1 }],
+  },
+};
+
+/** Matches docs/api.md "GET /api/interests" exactly. */
+export const MOCK_INTERESTS: Interest[] = [
+  { code: "animals", label: "Animals" },
+  { code: "sports", label: "Sports" },
+  { code: "space", label: "Space" },
+  { code: "nature", label: "Nature" },
+  { code: "food", label: "Food" },
+  { code: "music", label: "Music" },
+  { code: "art", label: "Art" },
+  { code: "science", label: "Science" },
+  { code: "history", label: "History" },
+  { code: "adventure", label: "Adventure" },
+];
+
+/** Short stand-ins for model-written passages (the real ones are 40-130 words). */
+export const MOCK_GENERATED: Record<GradeBand, Record<string, { title: string; text: string }>> = {
+  elementary: {
+    animals: { title: "The Night Owl", text: "An owl sits high in a tall tree. When the sun goes down, she opens her big round eyes. She can hear a tiny mouse moving in the grass far below. Soon she spreads her wings and glides without a sound." },
+    sports: { title: "The Big Kick", text: "Maya ran across the green field with the ball at her feet. Her team cheered as she looked up at the goal. She took a deep breath and kicked as hard as she could. The ball sailed past the keeper and into the net." },
+    space: { title: "A Walk on the Moon", text: "Imagine you can jump higher than a house. On the moon you can, because it pulls on you much less than Earth does. Each step feels like a slow bounce. Your footprints stay in the gray dust for a very long time." },
+    nature: { title: "Inside a Seed", text: "A small seed sleeps in the dark soil. When the rain comes, it drinks and begins to swell. A tiny root pushes down and a green shoot reaches up toward the light. Soon the seed is a plant." },
+    food: { title: "Making Bread", text: "Grandma mixes flour, water and a pinch of salt. She adds yeast and lets the dough rest in a warm bowl. After an hour it has grown twice as big. The kitchen smells wonderful when the loaf comes out." },
+    music: { title: "The Drum Circle", text: "Every Friday the children sit in a ring with their drums. One taps a slow beat and the next joins in. Soon the whole room hums with rhythm. When the last drum goes quiet, everyone smiles." },
+    art: { title: "Colors in the Sky", text: "Leo mixed blue and yellow on his paper and made a bright green. Then he added a little white to make it soft. He painted a hill, a tree and a wide sky full of clouds. It was his best picture yet." },
+    science: { title: "Why Ice Floats", text: "When water freezes, it grows a little bit bigger. That makes ice lighter than the water around it. This is why an ice cube floats in your drink. It is also why fish can live under a frozen pond." },
+    history: { title: "The First Maps", text: "Long ago, travelers drew pictures of rivers and mountains on animal skins. These first maps helped people find food and safe paths. Today we still use maps, but now many of them live inside our phones." },
+    adventure: { title: "The Hidden Path", text: "Sam found a narrow path behind the old stone wall. It twisted between tall ferns and over a mossy log. At the end he found a quiet pond, bright with dragonflies. It was the best secret in the whole forest." },
+  },
+  secondary: {
+    animals: { title: "How Bats Navigate", text: "Bats hunt in total darkness by sending out high pitched calls and listening for the echoes. From the delay and the pitch of each echo, a bat can judge the size, distance and speed of a moth in flight. This remarkable sense is called echolocation." },
+    sports: { title: "The Science of a Curveball", text: "A pitcher spins the baseball as it leaves his hand. The spin changes the air pressure around the ball, pushing it sideways as it travels toward the plate. By the time the batter reacts, the ball has already bent away from where it seemed to be heading." },
+    space: { title: "Light From Distant Stars", text: "When you look at a star, you are seeing light that left it long ago. Some of that light began its journey before anyone drew the first written word. Astronomers study it to learn what the star is made of and how far away it lies." },
+    nature: { title: "The Language of Forests", text: "Beneath a forest floor, thin threads of fungus connect the roots of many trees. Scientists have found that trees can share sugar and warning signals through this network. A forest may work less like a crowd of strangers and more like a community." },
+    food: { title: "Why Bread Rises", text: "Yeast is a living organism that feeds on the sugars in dough. As it feeds, it releases tiny bubbles of gas that become trapped in stretchy strands of gluten. The dough swells, and the oven later turns those bubbles into a soft, airy crumb." },
+    music: { title: "What Makes a Note", text: "Every musical note is a vibration. A guitar string that moves back and forth quickly produces a high pitch, while a slower vibration makes a low one. The shape of the instrument then shapes the sound, giving each one its own voice." },
+    art: { title: "The Rule of Thirds", text: "Many painters and photographers divide a picture into three equal parts, both across and down. They place the most important subject near one of the lines where those parts meet. The result often feels balanced and natural to the eye." },
+    science: { title: "How Vaccines Teach the Body", text: "A vaccine shows the immune system a harmless piece of a germ. The body learns to recognize it and builds defenders in advance. If the real germ ever arrives, the response is quick, and many people never become seriously ill." },
+    history: { title: "The Printing Press", text: "Before the printing press, every book was copied by hand, which took months. When Gutenberg built his press, a single shop could produce hundreds of pages in a day. Ideas moved faster, and more people learned to read." },
+    adventure: { title: "Crossing the Pass", text: "By noon the wind had grown sharp, and the trail narrowed to a ledge above the valley. The group moved slowly, testing each step before trusting it. When they finally reached the summit, the clouds opened and the whole range lay below them." },
   },
 };

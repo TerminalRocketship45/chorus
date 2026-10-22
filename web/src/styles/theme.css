@@ -1,117 +1,128 @@
+/*
+ * Chorus design tokens. iOS-native grouped-list system: tinted-neutral grounds,
+ * one blue accent, semantic colours only for word status. See /DESIGN.md.
+ */
 :root {
-  --color-bg: #ffffff;
-  --color-bg-alt: #f4f7f5;
-  --color-surface: #ffffff;
-  --color-border: #c7d0cb;
-  --color-text: #15241d;
-  --color-text-muted: #45544c;
+  color-scheme: light dark;
 
-  --color-primary: #2f6f4f;
-  --color-primary-dark: #1f4e36;
-  --color-primary-contrast: #ffffff;
+  /* Grounds */
+  --bg: #f2f2f7;            /* grouped background (the screen) */
+  --surface: #ffffff;       /* inset group / raised rows */
+  --surface-2: #f2f2f7;     /* fills inside a group (fields, chips at rest) */
+  --outer: #e3e3e8;         /* beside the column on wide screens */
+  --bar: rgba(249, 249, 251, 0.86);
+  --separator: #d8d8dd;     /* hairline */
+  --separator-strong: #c1c1c7;
 
-  --color-accent: #3b528b;
+  /* Text */
+  --label: #1c1c1e;
+  --label-2: #5f5f66;       /* secondary, 5.9:1 on white */
+  --label-3: #76767d;       /* placeholder / disabled-ish, 4.5:1 on white */
 
-  /* Word-status colours. Chosen for >= 4.5:1 contrast on white and paired
-     with a non-colour pattern (underline/marker) per the WCAG "don't rely on
-     colour alone" rule. */
-  --color-correct-text: #15241d;
-  --color-correct-bg: transparent;
+  /* Accent */
+  --accent: #0a62c9;        /* text/links on grounds, 5.9:1 on white */
+  --accent-fill: #0a62c9;   /* filled buttons, white label 5.9:1 */
+  --on-accent: #ffffff;
+  --accent-tint: rgba(10, 98, 201, 0.12);
+  --accent-tint-strong: rgba(10, 98, 201, 0.2);
 
-  --color-misread-text: #7a4a00;
-  --color-misread-bg: #fff3dc;
-  --color-misread-border: #b5760a;
+  /* States */
+  --positive: #1d7a3a;
+  --danger: #c0271e;
+  --danger-tint: #fdeceb;
+  --danger-line: #e5a39f;
+  --record: #d3271c;
 
-  --color-skipped-text: #51595c;
-  --color-skipped-bg: #eceeef;
-  --color-skipped-border: #8a9398;
+  /* Word status (strictly by `display`; see lib/display.ts) */
+  --word-misread-bg: #ffe8c2;
+  --word-misread-text: #5c3300;
+  --word-misread-line: #b25a00;
+  --word-skipped-text: #5a5a61;
+  --word-skipped-line: #6f6f77;
 
-  --color-positive: #1f6b4d;
-  --color-focus-ring: #3b528b;
+  /* Charts */
+  --chart-1: #0a62c9;
+  --chart-2: #6b6b73;
+  --chart-grid: #e1e1e6;
 
-  --color-error-text: #8a1f1f;
-  --color-error-bg: #fdecec;
-  --color-error-border: #c23b3b;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
 
-  --font-sans: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --radius-group: 12px;
+  --radius-control: 12px;
+  --radius-chip: 999px;
 
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-5: 1.5rem;
-  --space-6: 2rem;
-  --space-8: 3rem;
+  --col: 640px;
+  --gutter: 16px;
+  --row-min: 48px;
 
-  --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
-
-  --touch-target: 48px;
+  --shadow-sheet: 0 -1px 0 var(--separator);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --color-bg: #10180f;
-    --color-bg-alt: #182018;
-    --color-surface: #1b241a;
-    --color-border: #3a443a;
-    --color-text: #eef3ec;
-    --color-text-muted: #b7c3b9;
+    --bg: #000000;
+    --surface: #1c1c1e;
+    --surface-2: #2c2c2e;
+    --outer: #000000;
+    --bar: rgba(22, 22, 24, 0.86);
+    --separator: #38383a;
+    --separator-strong: #48484a;
 
-    --color-primary: #6fcf9b;
-    --color-primary-dark: #4fae7d;
-    --color-primary-contrast: #0b1710;
+    --label: #f5f5f7;
+    --label-2: #a5a5ab;
+    --label-3: #8d8d93;
 
-    --color-accent: #93a9e8;
+    --accent: #5aa9ff;
+    --accent-fill: #1f74e0;
+    --accent-tint: rgba(90, 169, 255, 0.16);
+    --accent-tint-strong: rgba(90, 169, 255, 0.26);
 
-    --color-correct-text: #eef3ec;
+    --positive: #4cc46d;
+    --danger: #ff7f77;
+    --danger-tint: #3a1a18;
+    --danger-line: #7a3b37;
+    --record: #e5483d;
 
-    --color-misread-text: #ffd794;
-    --color-misread-bg: #3a2c10;
-    --color-misread-border: #d79a35;
+    --word-misread-bg: #4a3210;
+    --word-misread-text: #ffd9a0;
+    --word-misread-line: #e59a3a;
+    --word-skipped-text: #b4b4ba;
+    --word-skipped-line: #8d8d93;
 
-    --color-skipped-text: #c2cac3;
-    --color-skipped-bg: #2a302a;
-    --color-skipped-border: #7c877d;
-
-    --color-positive: #7fe0b2;
-    --color-focus-ring: #93a9e8;
-
-    --color-error-text: #ffb4b4;
-    --color-error-bg: #3a1414;
-    --color-error-border: #d75c5c;
+    --chart-1: #5aa9ff;
+    --chart-2: #a0a0a8;
+    --chart-grid: #2c2c2e;
   }
 }
 
 :root[data-theme="dark"] {
-  --color-bg: #10180f;
-  --color-bg-alt: #182018;
-  --color-surface: #1b241a;
-  --color-border: #3a443a;
-  --color-text: #eef3ec;
-  --color-text-muted: #b7c3b9;
-
-  --color-primary: #6fcf9b;
-  --color-primary-dark: #4fae7d;
-  --color-primary-contrast: #0b1710;
-
-  --color-accent: #93a9e8;
-
-  --color-correct-text: #eef3ec;
-
-  --color-misread-text: #ffd794;
-  --color-misread-bg: #3a2c10;
-  --color-misread-border: #d79a35;
-
-  --color-skipped-text: #c2cac3;
-  --color-skipped-bg: #2a302a;
-  --color-skipped-border: #7c877d;
-
-  --color-positive: #7fe0b2;
-  --color-focus-ring: #93a9e8;
-
-  --color-error-text: #ffb4b4;
-  --color-error-bg: #3a1414;
-  --color-error-border: #d75c5c;
+  --bg: #000000;
+  --surface: #1c1c1e;
+  --surface-2: #2c2c2e;
+  --outer: #000000;
+  --bar: rgba(22, 22, 24, 0.86);
+  --separator: #38383a;
+  --separator-strong: #48484a;
+  --label: #f5f5f7;
+  --label-2: #a5a5ab;
+  --label-3: #8d8d93;
+  --accent: #5aa9ff;
+  --accent-fill: #1f74e0;
+  --accent-tint: rgba(90, 169, 255, 0.16);
+  --accent-tint-strong: rgba(90, 169, 255, 0.26);
+  --positive: #4cc46d;
+  --danger: #ff7f77;
+  --danger-tint: #3a1a18;
+  --danger-line: #7a3b37;
+  --record: #e5483d;
+  --word-misread-bg: #4a3210;
+  --word-misread-text: #ffd9a0;
+  --word-misread-line: #e59a3a;
+  --word-skipped-text: #b4b4ba;
+  --word-skipped-line: #8d8d93;
+  --chart-1: #5aa9ff;
+  --chart-2: #a0a0a8;
+  --chart-grid: #2c2c2e;
 }

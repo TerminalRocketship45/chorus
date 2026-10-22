@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
+import { Screen } from "../components/Screen";
 
 export function NotFound() {
   return (
-    <div className="page stack">
-      <h1>Page not found</h1>
-      <Link to="/">Go home</Link>
-    </div>
+    <Screen title="Page not found" large back={{ label: "Home", to: "/" }}>
+      <Link to="/" className="btn btn--filled btn--block">
+        Go home
+      </Link>
+    </Screen>
   );
 }

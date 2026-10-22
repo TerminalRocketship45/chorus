@@ -4,8 +4,12 @@ import type { Passage } from "../types/api";
 import { analyze, ApiRequestError, getPassage } from "../lib/api";
 import { useAppState } from "../context/AppContext";
 import { extensionForMimeType, pickRecorderMimeType } from "../lib/mimeType";
-import { formatElapsed } from "../lib/format";
+import { formatElapsed, formatPassageMeta } from "../lib/format";
 import { MAX_RECORDING_SECONDS } from "../content/app";
+import { recordLocalResult } from "../lib/history";
+import { loadHistory, saveHistory } from "../lib/storage";
+import { Screen } from "../components/Screen";
+import { Icon, Spinner } from "../components/Icon";
 
 type RecordingState = "loading-passage" | "idle" | "requesting-mic" | "recording" | "analyzing" | "error";
 
@@ -138,6 +142,7 @@ export function Read() {
         studentId: app.studentId,
         homeLanguage: app.homeLanguage,
       });
+      if (app.studentId === null) saveHistory(recordLocalResult(loadHistory(), passage.id, result));
       navigate("/results", { state: { analysis: result, passage, audioBlob: blob } });
     } catch (err) {
       if (err instanceof ApiRequestError) {
@@ -157,69 +162,104 @@ export function Read() {
     }
   }
 
+  const back = { label: "Passages", to: "/passages" };
+
   if (state === "loading-passage") {
     return (
-      <div className="page">
-        <p>Loading passage…</p>
-      </div>
+      <Screen title="Passage" back={back}>
+        <p className="footnote" role="status">
+          Loading passage…
+        </p>
+      </Screen>
     );
   }
 
   if (!passage) {
     return (
-      <div className="page stack">
-        <p className="error-banner">Chorus couldn't find that passage.</p>
-        <button type="button" className="btn btn-primary" onClick={() => navigate("/passages")}>
+      <Screen title="Passage" back={back}>
+        <div className="notice notice--error" role="alert">
+          <Icon name="warning" size={20} />
+          <span>Chorus couldn't find that passage.</span>
+        </div>
+        <button type="button" className="btn btn--filled btn--block" onClick={() => navigate("/passages")}>
           Back to passages
         </button>
-      </div>
+      </Screen>
     );
   }
 
+  const showRecorder = state === "idle" || state === "requesting-mic" || state === "recording";
+  const recording = state === "recording";
+
+  const bottom = showRecorder ? (
+    <div className="recorder">
+      {recording && (
+        <div
+          className="rec-progress"
+          role="progressbar"
+          aria-label="Recording length"
+          aria-valuemin={0}
+          aria-valuemax={MAX_RECORDING_SECONDS}
+          aria-valuenow={Math.floor(elapsed)}
+        >
+          <span style={{ width: `${Math.min(100, (elapsed / MAX_RECORDING_SECONDS) * 100)}%` }} />
+        </div>
+      )}
+      <button
+        type="button"
+        className="rec-btn"
+        aria-pressed={recording}
+        aria-label={recording ? "Stop recording" : "Start recording"}
+        disabled={state === "requesting-mic"}
+        onClick={recording ? stopRecording : startRecording}
+      >
+        <Icon name="mic" size={30} strokeWidth={2.2} />
+      </button>
+      {recording ? (
+        <p className="rec-time num" aria-live="polite">
+          {formatElapsed(elapsed)} / {formatElapsed(MAX_RECORDING_SECONDS)}
+        </p>
+      ) : (
+        <p className="rec-hint">Tap the button, then read the passage aloud.</p>
+      )}
+    </div>
+  ) : undefined;
+
   return (
-    <div className="page stack stack--loose">
-      <div className="stack stack--tight">
-        <h1>{passage.title}</h1>
-        <p style={{ fontSize: "1.4rem", lineHeight: 1.7 }}>{passage.text}</p>
+    <Screen title={passage.title} back={back} bottom={bottom}>
+      <div className="title-block">
+        <h1 className="large-title large-title--medium">{passage.title}</h1>
+        <p className="meta-line">{formatPassageMeta(passage.topic, passage.level, passage.word_count)}</p>
+      </div>
+      <div className="group">
+        <p className="passage-text">{passage.text}</p>
       </div>
 
-      {micError && <p className="error-banner">{micError}</p>}
+      {micError && (
+        <div className="notice notice--error" role="alert">
+          <Icon name="warning" size={20} />
+          <span>{micError}</span>
+        </div>
+      )}
       {state === "error" && analyzeError && (
-        <div className="stack stack--tight">
-          <p className="error-banner">{analyzeError}</p>
-          <button type="button" className="btn btn-primary" onClick={() => setState("idle")}>
-            Try again
-          </button>
+        <div className="notice notice--error" role="alert">
+          <Icon name="warning" size={20} />
+          <div className="notice__body">
+            <span>{analyzeError}</span>
+            <button type="button" className="btn btn--tinted btn--compact" onClick={() => setState("idle")}>
+              Try again
+            </button>
+          </div>
         </div>
       )}
 
       {state === "analyzing" && (
-        <div className="stack stack--tight" style={{ textAlign: "center" }} role="status" aria-live="polite">
-          <p style={{ fontSize: "1.2rem" }}>Listening to your reading…</p>
-          <p className="muted">This can take up to 40 seconds.</p>
+        <div className="busy" role="status" aria-live="polite">
+          <Spinner size={28} />
+          <p className="busy__title">Listening to your reading…</p>
+          <p className="rec-hint">This can take up to 40 seconds.</p>
         </div>
       )}
-
-      {(state === "idle" || state === "requesting-mic" || state === "recording") && (
-        <div className="stack" style={{ textAlign: "center" }}>
-          <button
-            type="button"
-            className="record-button"
-            aria-pressed={state === "recording"}
-            aria-label={state === "recording" ? "Stop recording" : "Start recording"}
-            disabled={state === "requesting-mic"}
-            onClick={state === "recording" ? stopRecording : startRecording}
-          >
-            {state === "recording" ? "Stop" : state === "requesting-mic" ? "…" : "Record"}
-          </button>
-          {state === "recording" && (
-            <p aria-live="polite" style={{ fontSize: "1.2rem" }}>
-              {formatElapsed(elapsed)} / {formatElapsed(MAX_RECORDING_SECONDS)}
-            </p>
-          )}
-          {state === "idle" && <p className="muted">Tap the button, then read the passage aloud.</p>}
-        </div>
-      )}
-    </div>
+    </Screen>
   );
 }

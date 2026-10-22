@@ -1,19 +1,12 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import type { StudentListItem } from "../types/api";
 import { getStudents } from "../lib/api";
-
-function formatDate(iso: string | null): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso).toLocaleDateString();
-  } catch {
-    return "—";
-  }
-}
+import { Screen } from "../components/Screen";
+import { Icon } from "../components/Icon";
+import { formatDate, formatHomeLanguage, gradeBandLabel } from "../lib/format";
 
 export function TeacherView() {
-  const navigate = useNavigate();
   const [students, setStudents] = useState<StudentListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,51 +25,53 @@ export function TeacherView() {
   }, []);
 
   return (
-    <div className="page page--wide stack">
-      <div className="stack stack--tight">
-        <h1>Students</h1>
-        <p className="note">
-          Demo: anyone with the link can see this list. Use first names or nicknames only.
-        </p>
+    <Screen title="Students" large back={{ label: "Home", to: "/" }}>
+      <div className="notice notice--info" style={{ marginTop: -12 }}>
+        <Icon name="info" size={20} />
+        <span>Demo: anyone with the link can see this list. Use first names or nicknames only.</span>
       </div>
 
-      {error && <p className="error-banner">{error}</p>}
-      {!students && !error && <p>Loading…</p>}
-      {students && students.length === 0 && <p className="muted">No students yet.</p>}
+      {error && (
+        <div className="notice notice--error" role="alert">
+          <Icon name="warning" size={20} />
+          <span>{error}</span>
+        </div>
+      )}
+      {!students && !error && (
+        <p className="footnote" role="status">
+          Loading…
+        </p>
+      )}
+      {students && students.length === 0 && <p className="footnote">No students yet.</p>}
 
       {students && students.length > 0 && (
-        <table className="roster" aria-label="Students">
-          <thead>
-            <tr>
-              <th scope="col">Name</th>
-              <th scope="col">Grade band</th>
-              <th scope="col">Home language</th>
-              <th scope="col">Sessions</th>
-              <th scope="col">Last read</th>
-              <th scope="col">Last WCPM</th>
-            </tr>
-          </thead>
-          <tbody>
-            {students.map((student) => (
-              <tr
-                key={student.id}
-                tabIndex={0}
-                onClick={() => navigate(`/teacher/${student.id}`)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") navigate(`/teacher/${student.id}`);
-                }}
-              >
-                <td>{student.name}</td>
-                <td>{student.grade_band === "elementary" ? "Grades 2–5" : "Grades 6–12"}</td>
-                <td>{student.home_language}</td>
-                <td>{student.session_count}</td>
-                <td>{formatDate(student.last_session_at)}</td>
-                <td>{student.last_wcpm ?? "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <ul className="group" aria-label="Students">
+          {students.map((student) => (
+            <li key={student.id}>
+              <Link to={`/teacher/${student.id}`} className="row">
+                <span className="row__body">
+                  <span className="row__title row__title--strong">{student.name}</span>
+                  <span className="row__sub">
+                    {gradeBandLabel(student.grade_band)} · {formatHomeLanguage(student.home_language)}
+                  </span>
+                  <span className="row__sub num">
+                    {student.session_count === 0
+                      ? "No sessions yet"
+                      : `${student.session_count} ${student.session_count === 1 ? "session" : "sessions"} · Last read ${formatDate(student.last_session_at)}`}
+                  </span>
+                </span>
+                <span className="row__value">
+                  <strong className="num">{student.last_wcpm ?? "—"}</strong>
+                  <span>Last WCPM</span>
+                </span>
+                <span className="row__chev">
+                  <Icon name="chevronRight" size={18} strokeWidth={2.4} />
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
       )}
-    </div>
+    </Screen>
   );
 }

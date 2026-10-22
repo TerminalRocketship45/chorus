@@ -1,8 +1,11 @@
 import type {
   AnalyzeResponse,
+  GeneratePassageRequest,
   GradeBand,
+  Interest,
   LanguageOption,
   Passage,
+  PassageProgress,
   Student,
   StudentDetailResponse,
   StudentListItem,
@@ -46,10 +49,39 @@ export function getPassage(id: string): Promise<Passage> {
   return request<Passage>(`/passages/${encodeURIComponent(id)}`);
 }
 
+export function getInterests(): Promise<Interest[]> {
+  return request<Interest[]>("/interests");
+}
+
+/** Can take several seconds; may return a library passage (source "library"). */
+export function generatePassage(body: GeneratePassageRequest): Promise<Passage> {
+  return request<Passage>("/passages/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function getStudentPassages(id: number): Promise<PassageProgress[]> {
+  return request<PassageProgress[]>(`/students/${id}/passages`);
+}
+
+export function updateStudent(
+  id: number,
+  body: Partial<{ name: string; grade_band: GradeBand; home_language: string; interests: string[] }>
+): Promise<Student> {
+  return request<Student>(`/students/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 export function createStudent(body: {
   name: string;
   grade_band: GradeBand;
   home_language: string;
+  interests?: string[];
 }): Promise<Student> {
   return request<Student>("/students", {
     method: "POST",

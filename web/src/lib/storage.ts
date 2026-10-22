@@ -1,4 +1,5 @@
-import type { GradeBand } from "../types/api";
+import type { GradeBand, Passage } from "../types/api";
+import type { LocalHistory } from "./history";
 
 /**
  * Every localStorage access goes through here, wrapped in try/catch: private
@@ -9,6 +10,9 @@ const KEYS = {
   studentName: "chorus:studentName",
   gradeBand: "chorus:gradeBand",
   homeLanguage: "chorus:homeLanguage",
+  interests: "chorus:interests",
+  history: "chorus:history",
+  localPassages: "chorus:localPassages",
 } as const;
 
 function safeGet(key: string): string | null {
@@ -40,6 +44,16 @@ export interface StoredReader {
   studentName: string | null;
   gradeBand: GradeBand | null;
   homeLanguage: string | null;
+  interests: string[];
+}
+
+function parseJson<T>(raw: string | null, fallback: T): T {
+  if (raw === null) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
 }
 
 export function loadStoredReader(): StoredReader {
@@ -50,7 +64,37 @@ export function loadStoredReader(): StoredReader {
     studentName: safeGet(KEYS.studentName),
     gradeBand: gradeBandRaw === "elementary" || gradeBandRaw === "secondary" ? gradeBandRaw : null,
     homeLanguage: safeGet(KEYS.homeLanguage),
+    interests: loadInterests(),
   };
+}
+
+export function loadInterests(): string[] {
+  const value = parseJson<unknown>(safeGet(KEYS.interests), []);
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+}
+
+export function saveInterests(codes: string[]): void {
+  safeSet(KEYS.interests, JSON.stringify(codes));
+}
+
+/** Read/score marks for readers without a nickname. */
+export function loadHistory(): LocalHistory {
+  const value = parseJson<unknown>(safeGet(KEYS.history), {});
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as LocalHistory) : {};
+}
+
+export function saveHistory(history: LocalHistory): void {
+  safeSet(KEYS.history, JSON.stringify(history));
+}
+
+/** Passages written for a reader without a nickname (there is no server list for them). */
+export function loadLocalPassages(): Passage[] {
+  const value = parseJson<unknown>(safeGet(KEYS.localPassages), []);
+  return Array.isArray(value) ? (value as Passage[]) : [];
+}
+
+export function saveLocalPassages(passages: Passage[]): void {
+  safeSet(KEYS.localPassages, JSON.stringify(passages));
 }
 
 export function saveGradeBand(gradeBand: GradeBand): void {
@@ -72,4 +116,7 @@ export function clearReader(): void {
   safeRemove(KEYS.studentName);
   safeRemove(KEYS.gradeBand);
   safeRemove(KEYS.homeLanguage);
+  safeRemove(KEYS.interests);
+  safeRemove(KEYS.history);
+  safeRemove(KEYS.localPassages);
 }

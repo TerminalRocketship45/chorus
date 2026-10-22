@@ -22,6 +22,15 @@ export interface Passage {
   topic: string;
   word_count: number;
   text: string;
+  /** "ai" passages have ids like g-12; the UI never labels them differently. */
+  source: PassageSource;
+}
+
+export type PassageSource = "library" | "ai";
+
+export interface Interest {
+  code: string;
+  label: string;
 }
 
 export interface Student {
@@ -29,6 +38,7 @@ export interface Student {
   name: string;
   grade_band: GradeBand;
   home_language: string;
+  interests: string[];
   created_at: string;
 }
 
@@ -123,4 +133,27 @@ export interface StudentDetailResponse {
 
 export interface ApiErrorBody {
   detail: string;
+}
+
+/** Body for POST /api/passages/generate (docs/api.md). */
+export interface GeneratePassageRequest {
+  band: GradeBand;
+  interests: string[];
+  student_id: number | null;
+  exclude_ids: string[];
+}
+
+export interface PassageLastResult {
+  accuracy: number;
+  accent_adjusted_accuracy: number | null;
+  wcpm: number;
+  at: string;
+}
+
+/** One row of GET /api/students/{id}/passages. */
+export interface PassageProgress {
+  passage: Passage;
+  read: boolean;
+  attempts: number;
+  last_result: PassageLastResult | null;
 }
