@@ -38,13 +38,14 @@ if name != want:
     print(f"Sign in to huggingface.co as {want} and create the token there.")
     sys.exit(1)
 if role == "fineGrained":
-    print("This is a fine-grained token. It can upload only if it has write access to the")
-    print("Space's repository. Trying anyway...")
+    print("This is a fine-grained token. It can upload only if it has write access to your")
+    print("repositories. If the upload below says 'not authorized', create a token on the")
+    print("Write tab instead (https://huggingface.co/settings/tokens) and run this again.")
 elif role != "write":
     print("This token cannot upload. Create a new token on the Write tab at")
     print("https://huggingface.co/settings/tokens and run this again.")
     sys.exit(1)
-print("Token looks right. Uploading...")
+print("Uploading...")
 PY
 
 bash "$HERE/push_space.sh"
