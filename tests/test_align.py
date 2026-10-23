@@ -114,3 +114,22 @@ def test_model_bundle_is_cached_across_calls(cat_wav):
     second = _get_model_bundle()
     assert first is second
     assert _get_model_bundle.cache_info().hits >= 1
+
+
+def test_align_device_env_and_zerogpu(monkeypatch):
+    """CHORUS_ALIGN_DEVICE wins; 'auto' never picks cuda on a ZeroGPU Space."""
+    from chorus import align
+
+    for env, zerogpu, expected in [("cpu", None, "cpu"), ("cuda", None, "cuda"), ("auto", "true", "cpu")]:
+        monkeypatch.setenv("CHORUS_ALIGN_DEVICE", env)
+        if zerogpu:
+            monkeypatch.setenv("SPACES_ZERO_GPU", zerogpu)
+        else:
+            monkeypatch.delenv("SPACES_ZERO_GPU", raising=False)
+        align._get_device.cache_clear()
+        assert align._get_device() == expected
+    monkeypatch.setenv("CHORUS_ALIGN_DEVICE", "gpu")
+    align._get_device.cache_clear()
+    with pytest.raises(ValueError):
+        align._get_device()
+    align._get_device.cache_clear()

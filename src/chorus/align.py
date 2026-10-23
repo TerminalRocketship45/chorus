@@ -8,6 +8,8 @@ WordResult.
 """
 from __future__ import annotations
 
+import os
+
 import re
 from dataclasses import dataclass
 from functools import lru_cache
@@ -37,7 +39,22 @@ def _get_bundle():
 
 @lru_cache(maxsize=1)
 def _get_device() -> str:
-    """Pick "cuda" when available, else "cpu" (the default on a CPU-only machine)."""
+    """Pick the alignment device from CHORUS_ALIGN_DEVICE (cpu|cuda|auto, default auto).
+
+    "auto" picks "cuda" when torch sees a GPU, else "cpu" -- except on a
+    Hugging Face ZeroGPU Space (SPACES_ZERO_GPU set), where torch reports a GPU
+    that only exists inside @spaces.GPU functions; moving the model there at
+    startup kills the app, so auto means "cpu" on ZeroGPU.
+    """
+    requested = os.environ.get("CHORUS_ALIGN_DEVICE", "auto").lower()
+    if requested not in ("cpu", "cuda", "auto"):
+        raise ValueError(
+            f"CHORUS_ALIGN_DEVICE must be 'cpu', 'cuda', or 'auto', got {requested!r}"
+        )
+    if requested != "auto":
+        return requested
+    if os.environ.get("SPACES_ZERO_GPU", "").lower() in ("1", "true", "t", "yes"):
+        return "cpu"
     import torch
 
     return "cuda" if torch.cuda.is_available() else "cpu"
