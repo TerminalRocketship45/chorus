@@ -1,5 +1,5 @@
 {
-  "limitations": "Mandarin-L1 only (all 250 speakers of the speechocean762 corpus); ASR was small.en on CPU; one seeded sample of 2500 utterances from the corpus test split. This is not a general product claim. Most baseline false flags are not accent-shaped (ASR/text mismatch such as in->into), so the ASR sets the ceiling on what an accent filter can withdraw. Number words that Whisper renders as digits are normalised by miscue.normalize for integers 0-999 (larger or mixed tokens such as 2599 or 1st are left unchanged). Of the 2301 baseline false flags, 1815 are substitutions, 190 omissions and 296 insertions; an INSERTION-status false flag is a word read correctly with an extra word nearby, which the accent filter cannot touch. Final-consonant deletion cannot distinguish an accent from a dropped inflection: 11 of 965 genuine errors (expert accuracy < 8.0) were excused, e.g. its->it, world->word, opened->open.",
+  "limitations": "Mandarin-L1 only (all 250 speakers of the speechocean762 corpus); ASR was small.en on CPU; one seeded sample of 2500 utterances from the corpus test split. This is not a general product claim. Most baseline false flags are not accent-shaped (ASR/text mismatch such as in->into), so the ASR sets the ceiling on what an accent filter can withdraw. Number words that Whisper renders as digits are normalised by miscue.normalize for integers 0-999 and ordinals 1st-999th (larger or mixed tokens such as 2599 are left unchanged). Of the 2301 baseline false flags, 1815 are substitutions, 190 omissions and 296 insertions; an INSERTION-status false flag is a word read correctly with an extra word nearby, which the accent filter cannot touch. Final-consonant deletion cannot distinguish an accent from a dropped inflection: 11 of 965 genuine errors (expert accuracy < 8.0) were excused, e.g. its->it, world->word, opened->open.",
   "genuine_errors_excused": 11,
   "baseline_false_flag_rate_on_expert_correct": {
     "rate": 0.1571291996722207,
@@ -16,7 +16,7 @@
   "not_reached_expert_correct": 7,
   "not_reached_expert_mispronounced": 9,
   "digit_rendering_false_flags": 0,
-  "false_flags_with_any_digit_in_heard": 12,
+  "false_flags_with_any_digit_in_heard": 8,
   "words": 15967,
   "utterances": 2500,
   "counts_by_status": {

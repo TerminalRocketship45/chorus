@@ -4,7 +4,7 @@ import type { AnalyzeResponse, Passage, WordResult } from "../types/api";
 import { WordToken } from "../components/WordToken";
 import { Legend } from "../components/Legend";
 import { ScorePanel } from "../components/ScorePanel";
-import { hasUnreached, visualForDisplay } from "../lib/display";
+import { hasSurface, hasUnreached, visualForDisplay } from "../lib/display";
 import { Screen } from "../components/Screen";
 import { Icon } from "../components/Icon";
 import { Feedback } from "../components/Feedback";
@@ -86,6 +86,7 @@ export function Results() {
   const words = state?.analysis.words ?? [];
   const replay = useReplay(audioUrl, words);
   const { playFromWord, playing, current, available } = replay;
+  const surfaced = hasSurface(words);
   const canReplay = available && audioUrl !== null && words.some(hasTiming);
 
   useEffect(() => {
@@ -157,6 +158,7 @@ export function Results() {
               word={word}
               selected={selected?.index === word.index}
               current={current === word.index}
+              surfaced={surfaced}
               onSelect={selectWord}
             />
           ))}

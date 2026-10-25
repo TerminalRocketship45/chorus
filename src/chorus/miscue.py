@@ -12,6 +12,7 @@ from difflib import SequenceMatcher
 from chorus.types import WordResult, WordStatus
 
 _PUNCT = re.compile(r"[^\w']+")
+_WORD_RUN = re.compile(r"[\w']+")
 
 # Minimum string similarity for an extra word to count as a failed attempt at the next word.
 SELF_CORRECTION_MIN_SIMILARITY = 0.5
@@ -40,6 +41,37 @@ def _number_words(n: int) -> list[str]:
     return words
 
 
+_ORDINAL = re.compile(r"([1-9][0-9]{0,2})(st|nd|rd|th)")
+
+_ORDINAL_WORD = {
+    "one": "first", "two": "second", "three": "third", "five": "fifth",
+    "eight": "eighth", "nine": "ninth", "twelve": "twelfth",
+    "twenty": "twentieth", "thirty": "thirtieth", "forty": "fortieth",
+    "fifty": "fiftieth", "sixty": "sixtieth", "seventy": "seventieth",
+    "eighty": "eightieth", "ninety": "ninetieth", "hundred": "hundredth",
+}
+
+
+def _ordinal_suffix(n: int) -> str:
+    if 10 <= n % 100 <= 20:
+        return "th"
+    return {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+
+
+def _ordinal_words(token: str) -> list[str] | None:
+    """"4th" -> ["fourth"], "21st" -> ["twenty", "first"]; None if not a valid ordinal 1st-999th."""
+    m = _ORDINAL.fullmatch(token)
+    if m is None:
+        return None
+    n = int(m.group(1))
+    if m.group(2) != _ordinal_suffix(n):
+        return None
+    words = _number_words(n)
+    last = words[-1]
+    words[-1] = _ORDINAL_WORD.get(last, last + "th")  # four -> fourth, six -> sixth
+    return words
+
+
 def _contains_run(tokens: list[str], run: list[str]) -> bool:
     n = len(run)
     return any(tokens[i : i + n] == run for i in range(len(tokens) - n + 1))
@@ -51,10 +83,12 @@ def normalize(text: str, digit_context: list[str] | None = None) -> list[str]:
     A token that is a canonical integer from 0 to 999 (no leading zeros except
     the single token "0") becomes its English cardinal words as separate tokens
     ("4" -> "four", "21" -> "twenty", "one", "101" -> "one", "hundred", "one").
-    Both the expected passage and the ASR transcript pass through this
+    An ordinal 1st-999th ("4th", "21st", "101st", any case, correct suffix)
+    becomes its ordinal words the same way ("fourth", "twenty", "first",
+    "one", "hundred", "first"). Both the expected passage and the ASR transcript pass through this
     function, so both land in the same space: a spoken number word and
     Whisper's digit rendering of it now match. Any other digit-bearing token
-    ("2599", "1st", "007") is left unchanged. Limitation: decimals and
+    ("2599", "007", "4st") is left unchanged. Limitation: decimals and
     thousands separators are split by the punctuation rule first, so "3.5" is
     read as "three", "five" and "1,000" as "one", "000" (each part mapped
     separately, so "000" stays unchanged).
@@ -66,9 +100,50 @@ def normalize(text: str, digit_context: list[str] | None = None) -> list[str]:
     cardinal reading does not, the digit-by-digit reading is used. If both or
     neither match, the default cardinal reading (or unchanged token) stays.
     """
-    cleaned = _PUNCT.sub(" ", text.lower())
+    out: list[str] = []
+    for chunk in text.split():
+        out.extend(_normalize_chunk(chunk, digit_context))
+    return out
+
+
+def normalize_with_surface(text: str) -> list[tuple[str, str]]:
+    """Like `normalize(text)` (no digit context), but each token is paired with its surface text.
+
+    The surface is the original text that produced the token, capitals and
+    punctuation intact ("District." for "district", "Minnesota's" for
+    "minnesota's"). Each whitespace-delimited chunk of `text` is handled alone:
+
+    - one token: the chunk is its surface ("4th" -> "fourth");
+    - several tokens that line up with the chunk's word runs (hyphens, dashes,
+      slashes: "twenty-one", "up-to-date", "end.Next"): the chunk is split at
+      the run boundaries, trailing punctuation staying with the earlier piece
+      ("twenty-", "one");
+    - several tokens from a single run ("21" -> "twenty", "one"): the whole
+      chunk is the surface of the first token and "" of the rest. Callers
+      render an empty surface as a continuation of the previous token.
+
+    A chunk with no word characters (a lone dash) yields no token and is dropped.
+    """
+    out: list[tuple[str, str]] = []
+    for chunk in text.split():
+        toks = _normalize_chunk(chunk, None)
+        starts = [m.start() for m in _WORD_RUN.finditer(chunk)]
+        if len(toks) > 1 and len(starts) == len(toks):
+            bounds = [0] + starts[1:] + [len(chunk)]
+            out.extend((t, chunk[bounds[i] : bounds[i + 1]]) for i, t in enumerate(toks))
+        else:
+            out.extend((t, chunk if i == 0 else "") for i, t in enumerate(toks))
+    return out
+
+
+def _normalize_chunk(chunk: str, digit_context: list[str] | None) -> list[str]:
+    cleaned = _PUNCT.sub(" ", chunk.lower())
     out: list[str] = []
     for t in cleaned.split():
+        ordinal = _ordinal_words(t)
+        if ordinal is not None:
+            out.extend(ordinal)
+            continue
         if digit_context is not None and t.isascii() and t.isdigit() and len(t) > 1:
             digits = [_ONES[int(c)] for c in t]
             cardinal = (
@@ -87,7 +162,10 @@ def normalize(text: str, digit_context: list[str] | None = None) -> list[str]:
 
 
 def detect_miscues(
-    expected: list[str], heard: list[str], same_sound: bool = False
+    expected: list[str],
+    heard: list[str],
+    same_sound: bool = False,
+    surfaces: list[str] | None = None,
 ) -> list[WordResult]:
     """Classify each expected word against what was actually said.
 
@@ -97,9 +175,17 @@ def detect_miscues(
     CMU pronunciation to the expected word (two/too, their/there) is CORRECT:
     the recogniser chose a spelling, the reader said the right sound. `heard`
     keeps the recogniser's spelling. Off by default.
+
+    `surfaces` (optional, same length as `expected`) are the original passage
+    texts to carry onto each WordResult.surface (see normalize_with_surface).
     """
+    if surfaces is not None and len(surfaces) != len(expected):
+        raise ValueError(f"{len(surfaces)} surfaces for {len(expected)} expected words")
     results: list[WordResult] = [
-        WordResult(index=i, expected=w, heard=None, status=WordStatus.OMISSION)
+        WordResult(
+            index=i, expected=w, heard=None, status=WordStatus.OMISSION,
+            surface=surfaces[i] if surfaces is not None else "",
+        )
         for i, w in enumerate(expected)
     ]
     # Extra tokens the reader produced that map to no expected word, keyed by

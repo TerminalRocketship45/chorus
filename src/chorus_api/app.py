@@ -177,6 +177,7 @@ def _word_to_dict(w: WordResult) -> dict[str, Any]:
     return {
         "index": w.index,
         "expected": w.expected,
+        "surface": w.surface,
         "heard": w.heard,
         "status": w.status.value,
         "accent_excused": w.accent_excused,

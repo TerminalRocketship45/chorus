@@ -67,3 +67,18 @@ export const WORD_LEGEND: Array<{ className: WordVisualClass; marker: WordMarker
 ];
 
 export const UNREACHED_LEGEND = { className: "unreached", marker: "none", label: "Not reached (you stopped before it)" } as const;
+
+/** True when the response carries original passage text (newer analyses). */
+export function hasSurface(words: readonly { surface?: string }[]): boolean {
+  return words.some((w) => !!w.surface);
+}
+
+/**
+ * The text to draw for a word: its original passage text when present, else the normalized
+ * `expected` (old saved sessions). A word with an empty surface inside a surface-bearing
+ * reading is a continuation of the previous word ("one" of "21") and draws as nothing.
+ */
+export function wordText(word: { expected: string; surface?: string }, surfaced: boolean): string {
+  if (word.surface) return word.surface;
+  return surfaced ? "" : word.expected;
+}

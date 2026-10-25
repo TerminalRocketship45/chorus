@@ -95,11 +95,11 @@ def test_analyze_skips_alignment_when_no_token_is_alignable(monkeypatch, tmp_pat
     monkeypatch.setattr(
         pipeline, "transcribe",
         lambda path, model_size="base.en": Transcript(
-            text="twenty five ninety nine first", duration_s=3.0
+            text="twenty five ninety nine seven", duration_s=3.0
         ),
     )
-    # 2599 (above 999) and 1st are left unchanged by normalize and are not alignable.
-    result = analyze(tmp_path / "unused.wav", "2599 1st")
+    # 2599 (above 999) and 007 are left unchanged by normalize and are not alignable.
+    result = analyze(tmp_path / "unused.wav", "2599 007")
     assert isinstance(result, Analysis)
     assert len(result.words) == 2
     assert all(w.start is None and w.end is None for w in result.words)
@@ -108,12 +108,12 @@ def test_analyze_skips_alignment_when_no_token_is_alignable(monkeypatch, tmp_pat
 def test_analyze_exclude_unreached_is_opt_in(monkeypatch, tmp_path):
     monkeypatch.setattr(
         pipeline, "transcribe",
-        lambda path, model_size="base.en", **kw: Transcript(text="2599 1st", duration_s=6.0),
+        lambda path, model_size="base.en", **kw: Transcript(text="2599 007", duration_s=6.0),
     )
     monkeypatch.setattr(pipeline, "align_words", lambda *a, **k: [])
     tail = {"v": 0.0}
     monkeypatch.setattr(pipeline, "tail_speech_s", lambda p, w: tail["v"])
-    text = "2599 1st 2599 1st"
+    text = "2599 007 2599 007"
     off = analyze(tmp_path / "x.wav", text)
     assert off.score.total_words == 4 and off.score.accuracy == 0.5
     on = analyze(tmp_path / "x.wav", text, exclude_unreached=True)
@@ -200,6 +200,17 @@ def test_analyze_small_number_is_aligned_as_its_word(monkeypatch, tmp_path):
     assert [w.expected for w in result.words] == ["the", "three", "cats"]
     assert all(w.status is WordStatus.CORRECT for w in result.words)
     assert all(w.start is not None and w.end is not None for w in result.words)
+
+
+def test_analyze_carries_surface_text_and_matches_ordinals(monkeypatch, tmp_path):
+    calls = []
+    _patch_stages(monkeypatch, "minnesota's fourth district twenty one", calls)
+    result = analyze(tmp_path / "x.wav", "Minnesota's 4th District. 21")
+    assert [w.expected for w in result.words] == [
+        "minnesota's", "fourth", "district", "twenty", "one"
+    ]
+    assert [w.surface for w in result.words] == ["Minnesota's", "4th", "District.", "21", ""]
+    assert all(w.status is WordStatus.CORRECT for w in result.words)
 
 
 @pytest.mark.parametrize("text", ["", "   ", "!!! ... ---"])

@@ -1,6 +1,6 @@
 import pytest
 
-from chorus.miscue import normalize, detect_miscues
+from chorus.miscue import normalize, normalize_with_surface, detect_miscues
 from chorus.types import WordStatus
 
 
@@ -132,7 +132,7 @@ def test_normalize_maps_small_integers_to_words(text, tokens):
     assert normalize(text) == tokens
 
 
-@pytest.mark.parametrize("token", ["2599", "1000", "1st", "3rd", "000", "007", "00", "05"])
+@pytest.mark.parametrize("token", ["2599", "1000", "000", "4st", "1th", "0th", "1000th", "11st", "007", "00", "05"])
 def test_normalize_leaves_other_digit_tokens_unchanged(token):
     assert normalize(token) == [token]
 
@@ -198,3 +198,39 @@ def test_substitution_as_last_heard_word_keeps_trailing_omissions():
     # "cot" is a substitution at the end: the recogniser's end is garbled, not a clean stop
     s = _marked("the cat sat on mats", "the cot")
     assert s[2:] == [WordStatus.OMISSION] * 3
+
+
+@pytest.mark.parametrize(
+    "text,tokens",
+    [
+        ("1st", ["first"]), ("2nd", ["second"]), ("3rd", ["third"]), ("4th", ["fourth"]),
+        ("5th", ["fifth"]), ("6th", ["sixth"]), ("8th", ["eighth"]), ("9th", ["ninth"]),
+        ("11th", ["eleventh"]), ("12th", ["twelfth"]), ("13th", ["thirteenth"]),
+        ("20th", ["twentieth"]), ("21st", ["twenty", "first"]), ("22nd", ["twenty", "second"]),
+        ("40th", ["fortieth"]), ("100th", ["one", "hundredth"]),
+        ("101st", ["one", "hundred", "first"]), ("112th", ["one", "hundred", "twelfth"]),
+        ("999th", ["nine", "hundred", "ninety", "ninth"]),
+        ("4TH", ["fourth"]), ("Minnesota's 4th District.", ["minnesota's", "fourth", "district"]),
+    ],
+)
+def test_normalize_maps_ordinals_to_words(text, tokens):
+    assert normalize(text) == tokens
+
+
+def test_ordinal_matches_spoken_word():
+    assert normalize("Minnesota's 4th District") == normalize("Minnesota's Fourth District")
+    out = detect_miscues(normalize("Minnesota's Fourth District"), normalize("Minnesota's 4th District"))
+    assert all(w.status is WordStatus.CORRECT for w in out)
+
+
+def test_normalize_with_surface_keeps_original_text():
+    pairs = normalize_with_surface("Minnesota's 4th District. Twenty-one 21 apps")
+    assert pairs == [
+        ("minnesota's", "Minnesota's"), ("fourth", "4th"), ("district", "District."),
+        ("twenty", "Twenty-"), ("one", "one"), ("twenty", "21"), ("one", ""), ("apps", "apps"),
+    ]
+    assert [t for t, _ in pairs] == normalize("Minnesota's 4th District. Twenty-one 21 apps")
+    assert normalize_with_surface("end.Next 1,000") == [
+        ("end", "end."), ("next", "Next"), ("one", "1,"), ("000", "000"),
+    ]
+    assert normalize_with_surface("a — b") == [("a", "a"), ("b", "b")]

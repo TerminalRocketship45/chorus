@@ -15,6 +15,7 @@ from chorus.asr import transcribe
 from chorus.l1.engine import is_accent_variant, load_ruleset
 from chorus.miscue import (
     detect_miscues, has_trailing_omissions, last_heard_index, mark_unreached, normalize,
+    normalize_with_surface,
 )
 from chorus.tail import MAX_TAIL_SPEECH_S, implausibly_long, speech_after
 from chorus.scoring import score_reading, score_with_accent_excused
@@ -139,7 +140,9 @@ def analyze(
     """
     if language:
         load_ruleset(language)
-    expected_tokens = normalize(expected_text)
+    pairs = normalize_with_surface(expected_text)
+    expected_tokens = [t for t, _ in pairs]
+    surfaces = [s for _, s in pairs]
     if not expected_tokens:
         raise ValueError("expected_text contains no words")
     asr_opts: dict = {}
@@ -157,6 +160,7 @@ def analyze(
         normalize(
             transcript.text, digit_context=expected_tokens if digit_context else None
         ),
+        surfaces=surfaces,
         **({"same_sound": True} if same_sound else {}),
     )
 

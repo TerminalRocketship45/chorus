@@ -32,7 +32,7 @@ def _fake_analyze_factory(language_seen: list):
         language_seen.append(language)
         OPTIONS_SEEN.append(dict(options))
         words = [
-            WordResult(index=0, expected="the", heard="the", status=WordStatus.CORRECT, start=0.0, end=0.1),
+            WordResult(index=0, expected="the", heard="the", status=WordStatus.CORRECT, start=0.0, end=0.1, surface="The"),
             WordResult(
                 index=1,
                 expected="cat",
@@ -342,3 +342,21 @@ def test_analyze_options_can_be_overridden_by_env(client, monkeypatch):
 def test_analyze_never_passes_prompt_passage(client, monkeypatch):
     monkeypatch.setenv("CHORUS_PROMPT_PASSAGE", "1")
     assert "prompt_passage" not in _post_options(client, monkeypatch)
+
+
+def test_analyze_words_carry_surface(client, monkeypatch):
+    resp, _ = _post_analyze(client, monkeypatch, passage_id="el-01")
+    words = resp.json()["words"]
+    assert words[0]["surface"] == "The" and words[0]["expected"] == "the"
+    assert words[1]["surface"] == ""  # unknown surface stays an empty string
+
+
+def test_surface_is_stored_with_the_session(client, monkeypatch):
+    import json, sqlite3, os
+    sid = client.post("/api/students", json={"name": "Sam", "grade_band": "elementary"}).json()["id"]
+    resp, _ = _post_analyze(client, monkeypatch, passage_id="el-01", student_id=str(sid))
+    assert resp.status_code == 200, resp.text
+    row = sqlite3.connect(os.environ["CHORUS_DB"]).execute(
+        "SELECT words_json FROM sessions WHERE student_id = ?", (sid,)
+    ).fetchone()
+    assert json.loads(row[0])[0]["surface"] == "The"

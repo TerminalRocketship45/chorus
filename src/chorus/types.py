@@ -57,6 +57,12 @@ class WordResult:
     start: float | None = None
     end: float | None = None
     accent_excused: bool = False
+    #: The original passage text that produced `expected` (capitals and
+    #: punctuation intact, e.g. "District." for "district"). When one original
+    #: token expands to several expected words ("4th" is one, "21" is "twenty",
+    #: "one") the full original is on the first and "" on the rest. "" also
+    #: means unknown (callers that did not supply surfaces); display `expected`.
+    surface: str = ""
 
 
 @dataclass

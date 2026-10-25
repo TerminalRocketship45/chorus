@@ -12,6 +12,8 @@ describe("formatAccuracyPct", () => {
 describe("formatWcpm", () => {
   it("rounds to a whole number", () => {
     expect(formatWcpm(45.7)).toBe("46");
+    expect(formatWcpm(161.36919315403424)).toBe("161");
+    expect(formatWcpm(0)).toBe("0");
   });
 });
 

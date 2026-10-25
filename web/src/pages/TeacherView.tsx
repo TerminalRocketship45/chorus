@@ -4,7 +4,7 @@ import type { StudentListItem } from "../types/api";
 import { getStudents } from "../lib/api";
 import { Screen } from "../components/Screen";
 import { Icon } from "../components/Icon";
-import { formatDate, formatHomeLanguage, gradeBandLabel } from "../lib/format";
+import { formatDate, formatHomeLanguage, formatWcpm, gradeBandLabel } from "../lib/format";
 
 export function TeacherView() {
   const [students, setStudents] = useState<StudentListItem[] | null>(null);
@@ -56,7 +56,7 @@ export function TeacherView() {
                   </span>
                 </span>
                 <span className="row__value">
-                  <strong className="num">{student.last_wcpm ?? "None"}</strong>
+                  <strong className="num">{student.last_wcpm === null ? "None" : formatWcpm(student.last_wcpm)}</strong>
                   <span>Last WCPM</span>
                 </span>
                 <span className="row__chev">

@@ -88,6 +88,9 @@ export type WordDisplay =
 export interface WordResult {
   index: number;
   expected: string;
+  /** Original passage text for this word (capitals, punctuation). "" for a continuation word
+   * ("21" -> "twenty", "one": "one" has ""); missing on sessions saved before it existed. */
+  surface?: string;
   heard: string | null;
   status: WordStatus;
   accent_excused: boolean;

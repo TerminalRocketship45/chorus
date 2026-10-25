@@ -106,7 +106,7 @@ student's).
  "passage_id": "el-01",
  "home_language": "somali",
  "accent_filter_applied": true,
- "words": [{"index": 0, "expected": "the", "heard": "the", "status": "correct",
+ "words": [{"index": 0, "expected": "the", "surface": "The", "heard": "the", "status": "correct",
             "accent_excused": false, "display": "correct", "start": 0.12, "end": 0.18}],
  "score": {"accuracy": 0.95, "wcpm": 88.2, "total_words": 62, "correct_words": 59,
            "duration_s": 40.1, "long_pauses": 2, "words_reached": 62, "passage_words": 62},
@@ -122,7 +122,14 @@ reached (so accuracy is out of those), `passage_words` is the full passage lengt
 unless the reader stopped early. WCPM is words correct per minute of the whole recording.
 Sessions saved before this revision lack `words_reached`/`passage_words`; treat a missing value as
 `total_words`. `start`/`end` are seconds into the recording, or null for untimed
-words. `accent_adjusted` is null when no accent rules apply.
+words. `expected` is the normalized token (lowercase, no punctuation, numbers and ordinals spelled
+out); `surface` is the original passage text that produced it, capitals and punctuation intact
+("District." for "district"). When one original token expands to several words it is split at word boundaries when it can be
+("twenty-one" gives `"twenty-"` and `"one"`); when it cannot ("21" gives "twenty", "one") the whole
+original is the `surface` of the first and `""` of the rest (a continuation word, shown as a small
+joined marker);
+`""` also means unknown (sessions saved before `surface` existed), so clients show `surface` when
+non-empty and `expected` otherwise. `accent_adjusted` is null when no accent rules apply.
 
 Errors are `{"detail": "..."}` with: 400 bad field / unknown passage or student, 413 recording
 longer than 120 s or file larger than 10 MB, 422 audio that cannot be decoded or contains no

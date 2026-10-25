@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasUnreached, visualForDisplay, WORD_LEGEND } from "./display";
+import { hasSurface, hasUnreached, visualForDisplay, WORD_LEGEND, wordText } from "./display";
 
 describe("visualForDisplay", () => {
   it("renders accent_ok identically to correct (never reveal the accent excuse)", () => {
@@ -54,5 +54,20 @@ describe("visualForDisplay", () => {
   it("detects whether any word was not reached", () => {
     expect(hasUnreached([{ display: "correct" }, { display: "not_reached" }])).toBe(true);
     expect(hasUnreached([{ display: "correct" }, { display: "skipped" }])).toBe(false);
+  });
+});
+
+describe("wordText", () => {
+  it("draws the original passage text when the word has a surface", () => {
+    expect(wordText({ expected: "district", surface: "District." }, true)).toBe("District.");
+  });
+  it("falls back to expected for old sessions without any surface", () => {
+    expect(hasSurface([{ surface: undefined }, { surface: "" }])).toBe(false);
+    expect(wordText({ expected: "cat" }, false)).toBe("cat");
+  });
+  it("draws a continuation word (empty surface in a surfaced reading) as nothing", () => {
+    const words = [{ expected: "twenty", surface: "21" }, { expected: "one", surface: "" }];
+    expect(hasSurface(words)).toBe(true);
+    expect(wordText(words[1], true)).toBe("");
   });
 });

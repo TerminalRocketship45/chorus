@@ -133,7 +133,9 @@ button:disabled {
 
 .navbar__inner {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  /* Side tracks never shrink below their content; the centred title gets only the
+     space left between them and truncates with an ellipsis (as on iOS). */
+  grid-template-columns: minmax(auto, 1fr) minmax(0, auto) minmax(auto, 1fr);
   align-items: center;
   height: 44px;
   padding: 0 4px;
@@ -141,17 +143,24 @@ button:disabled {
 
 .navbar__lead {
   justify-self: start;
-  min-width: 0;
+  position: relative;
+  z-index: 2; /* the back button always stays above the title and clickable */
 }
 
 .navbar__trail {
   justify-self: end;
+  position: relative;
+  z-index: 2;
 }
 
 .navbar__title {
   font-size: 1.0625rem;
   font-weight: 600;
-  max-width: 52vw;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0 8px;
+  box-sizing: border-box;
+  pointer-events: none; /* never intercept taps meant for the bar items */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -920,6 +929,13 @@ button.row:active {
   text-decoration-thickness: 2px;
   text-underline-offset: 5px;
   text-decoration-color: var(--word-misread-line);
+}
+
+/* A word with no text of its own (the "one" of "21"): a narrow joined chip so it stays tappable and coloured. */
+.word--cont {
+  min-width: 14px;
+  padding: 0 2px;
+  margin-left: -4px;
 }
 
 .word--skipped {
