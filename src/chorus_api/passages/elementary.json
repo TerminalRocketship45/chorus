@@ -1,11 +1,11 @@
 [
   {
     "id": "cac-01",
-    "title": "The Congressional App Challenge",
+    "title": "Reading Together",
     "band": "elementary",
     "level": 1,
     "topic": "science",
-    "text": "We are building a reading app for the Congressional App Challenge in Minnesota's Fourth District. Our app listens while a student reads aloud. It follows each word and shows which ones were tricky. Many of us speak another language at home, so our app does not count an accent as a mistake. We want every reader to feel proud and brave. We hope you will read with us today."
+    "text": "Every evening, my sister read aloud to our little brother before bed. Some words were long and tricky, so she sounded them out slowly. He laughed at the funny voices she gave the animals. One night he picked up the book and tried to read the first page himself. He stumbled, then kept going, and my sister cheered for every brave word. By the end of the week, he was reading to her."
   },
   {
     "id": "el-01",
