@@ -8,6 +8,7 @@ import { loadHistory } from "../lib/storage";
 import { loadGenerated, rememberGenerated, saveGenerated, type StoredGenerated } from "../lib/generated";
 import { MAX_TOPIC_LENGTH, normalizeTopic } from "../lib/topic";
 import { formatAccuracyPct, formatPassageMeta, formatTopicMeta, formatWcpm } from "../lib/format";
+import { ENABLE_GENERATION } from "../content/app";
 import { Screen } from "../components/Screen";
 import { Icon, Spinner } from "../components/Icon";
 
@@ -66,7 +67,7 @@ export function PassagePicker() {
 
   const [rows, setRows] = useState<PassageProgress[]>([]);
   const [library, setLibrary] = useState<Passage[] | null>(null);
-  const [stored, setStored] = useState<StoredGenerated>(() => loadGenerated());
+  const [stored, setStored] = useState<StoredGenerated>(() => (ENABLE_GENERATION ? loadGenerated() : { passage: null, recent: [] }));
   const [topicInput, setTopicInput] = useState(app.topic);
   const [error, setError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -101,7 +102,7 @@ export function PassagePicker() {
         setLibrary(list.filter((p) => p.source !== "ai"));
         // Nothing saved on this device: a student's newest generated passage comes back from the server.
         setStored((cur) => {
-          if (cur.passage) return cur;
+          if (!ENABLE_GENERATION || cur.passage) return cur;
           const ai = personalRows.find((r) => r.passage.source === "ai");
           return ai ? rememberGenerated(cur, ai.passage) : cur;
         });
@@ -154,7 +155,7 @@ export function PassagePicker() {
     }
   }
 
-  const generated = stored.passage;
+  const generated = ENABLE_GENERATION ? stored.passage : null;
   const history = studentId === null ? loadHistory() : null;
   const generatedRow = generated ? progressFor(generated, rows, history) : null;
   const libRows = library ? libraryRows(library, rows, history, generated?.id ?? null) : null;
@@ -168,6 +169,7 @@ export function PassagePicker() {
         </div>
       )}
 
+      {ENABLE_GENERATION && (
       <section className="section" aria-labelledby="gen-title">
         <div className="section__head">
           <h2 className="section__title" id="gen-title">
@@ -225,6 +227,7 @@ export function PassagePicker() {
           {announce}
         </div>
       </section>
+      )}
 
       {!libRows && !error && (
         <ul className="group" aria-label="Loading passages" role="status">

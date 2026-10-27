@@ -4,18 +4,19 @@ import type { GradeBand, LanguageOption } from "../types/api";
 import { createStudent, getLanguages, ApiRequestError } from "../lib/api";
 import { useAppState } from "../context/AppContext";
 import { FALLBACK_LANGUAGES, NATIVE_NAMES } from "../content/languages";
+import { ENABLE_GENERATION } from "../content/app";
 import { normalizeTopic, MAX_TOPIC_LENGTH } from "../lib/topic";
 import { Screen } from "../components/Screen";
 import { Icon } from "../components/Icon";
 
 type Step = "grade" | "language" | "topic" | "name";
-const ORDER: Step[] = ["grade", "language", "topic", "name"];
+const ORDER: Step[] = ENABLE_GENERATION ? ["grade", "language", "topic", "name"] : ["grade", "language", "name"];
 
 const BACK_LABEL: Record<Step, string> = {
   grade: "Home",
   language: "Grade",
   topic: "Language",
-  name: "Topic",
+  name: ENABLE_GENERATION ? "Topic" : "Language",
 };
 
 export function Onboarding() {
@@ -120,7 +121,7 @@ export function Onboarding() {
         type="button"
         className="btn btn--filled btn--block"
         disabled={!homeLanguage}
-        onClick={() => setStep("topic")}
+        onClick={() => setStep(ENABLE_GENERATION ? "topic" : "name")}
       >
         Continue
       </button>

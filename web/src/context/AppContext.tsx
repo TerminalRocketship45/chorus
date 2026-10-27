@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import type { GradeBand } from "../types/api";
+import { ENABLE_GENERATION } from "../content/app";
 import { loadTopic, saveTopic } from "../lib/generated";
 import { clearReader, loadStoredReader, saveGradeBand, saveHomeLanguage, saveStudent } from "../lib/storage";
 
@@ -25,7 +26,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [homeLanguage, setHomeLanguageState] = useState<string | null>(initial.homeLanguage);
   const [studentId, setStudentId] = useState<number | null>(initial.studentId);
   const [studentName, setStudentName] = useState<string | null>(initial.studentName);
-  const [topic, setTopicState] = useState<string>(loadTopic());
+  const [topic, setTopicState] = useState<string>(ENABLE_GENERATION ? loadTopic() : "");
 
   const value = useMemo<AppState>(
     () => ({
